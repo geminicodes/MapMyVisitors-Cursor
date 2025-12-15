@@ -4,7 +4,10 @@
   // MapMyVisitors embeddable widget source.
   // Requirements: no globals, never break host page, async-only, CSP-safe.
 
-  var API_BASE = 'https://mapmyvisitors.com';
+  // Build-time injected by esbuild (scripts/build-widget.ts). This must never ship with `process` references.
+  // After build, this becomes a plain string constant like: "https://mapmyvisitors.com".
+  // eslint-disable-next-line no-undef
+  var API_BASE = process.env.API_BASE_URL || 'https://mapmyvisitors.com';
   var CONTAINER_ID = 'mapmyvisitors-widget';
   var POLL_INTERVAL_MS = 10000;
   var MAX_DOTS_DESKTOP = 50;
