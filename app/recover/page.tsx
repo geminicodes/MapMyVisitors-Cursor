@@ -29,7 +29,7 @@ export default function RecoverPage() {
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json();
+      await response.json().catch(() => null);
 
       if (!response.ok) {
         if (response.status === 429) {
@@ -42,7 +42,8 @@ export default function RecoverPage() {
       }
 
       setSuccess(true);
-    } catch (err) {
+    } catch (error) {
+      console.error('[Recover] Request failed:', error);
       setError('Network error. Please check your connection.');
       setLoading(false);
     }
@@ -77,10 +78,10 @@ export default function RecoverPage() {
 
               <h1 className="text-4xl font-bold mb-4">Check Your Email!</h1>
               <p className="text-lg text-text-secondary mb-2">
-                We've sent a magic link to <span className="text-text-primary font-medium">{email}</span>
+                We&apos;ve sent a magic link to <span className="text-text-primary font-medium">{email}</span>
               </p>
               <p className="text-sm text-text-muted mb-8">
-                The link expires in 24 hours. Check your spam folder if you don't see it.
+                The link expires in 24 hours. Check your spam folder if you don&apos;t see it.
               </p>
 
               <Link
