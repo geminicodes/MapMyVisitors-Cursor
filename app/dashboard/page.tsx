@@ -38,7 +38,8 @@ export default function DashboardPage() {
 
       setUserData(data.user);
       setLoading(false);
-    } catch (err) {
+    } catch (error) {
+      console.error('[Dashboard] verifyUser failed:', error);
       setError('network');
       setLoading(false);
     }
@@ -68,7 +69,8 @@ export default function DashboardPage() {
             setError('invalid-token');
             setLoading(false);
           }
-        } catch (err) {
+        } catch (error) {
+          console.error('[Dashboard] token verification failed:', error);
           setError('network');
           setLoading(false);
         }
