@@ -17,82 +17,80 @@
    avatarUrl?: string
  }
  
-+type VisitorPointWithIdx = VisitorPoint & {
-+  idx: number
-+  __element?: HTMLDivElement
-+}
-+
-+type GlobePointOfView = { lat: number; lng: number; altitude: number }
-+
-+interface GlobeControls {
-+  autoRotate: boolean
-+  autoRotateSpeed: number
-+}
-+
-+interface GlobeCamera {
-+  position: { x: number; y: number; z: number }
-+}
-+
-+interface GlobeRenderer {
-+  domElement?: HTMLElement
-+  dispose?: () => void
-+}
-+
-+// Minimal surface-area typing for the globe.gl instance we use.
-+// globe.gl's runtime object is more complex; we only type what we call.
-+interface GlobeInstance {
-+  (el: HTMLElement): void
-+
-+  width: (n: number) => GlobeInstance
-+  height: (n: number) => GlobeInstance
-+  globeImageUrl: (url: string) => GlobeInstance
-+  bumpImageUrl: (url: string) => GlobeInstance
-+  backgroundImageUrl: (url: string) => GlobeInstance
-+  atmosphereColor: (color: string) => GlobeInstance
-+  atmosphereAltitude: (n: number) => GlobeInstance
-+  showAtmosphere: (show: boolean) => GlobeInstance
-+
-+  pointColor: (fn: (p: VisitorPointWithIdx) => string) => GlobeInstance
-+  pointAltitude: (fn: (p: VisitorPointWithIdx) => number) => GlobeInstance
-+  pointRadius: (fn: (p: VisitorPointWithIdx) => number) => GlobeInstance
-+  pointLabel: (fn: (p: VisitorPointWithIdx) => string) => GlobeInstance
-+
-+  htmlElementsData: {
-+    (): VisitorPointWithIdx[] | undefined
-+    (data: VisitorPointWithIdx[]): GlobeInstance
-+  }
-+  htmlElement: (fn: (d: VisitorPointWithIdx) => HTMLElement) => GlobeInstance
-+  htmlLat: (fn: (d: VisitorPointWithIdx) => number) => GlobeInstance
-+  htmlLng: (fn: (d: VisitorPointWithIdx) => number) => GlobeInstance
-+  htmlAltitude: (fn: (d: VisitorPointWithIdx) => number) => GlobeInstance
-+
-+  pointsData: {
-+    (): VisitorPointWithIdx[] | undefined
-+    (data: VisitorPointWithIdx[]): GlobeInstance
-+  }
-+
-+  controls: () => GlobeControls
-+  camera: () => GlobeCamera
-+  renderer: () => GlobeRenderer
-+  pointOfView: (pov: GlobePointOfView, ms: number) => void
-+}
-+
-+type GlobeFactory = () => GlobeInstance
-+
-+declare global {
-+  interface Window {
-+    Globe?: GlobeFactory
-+  }
-+}
-+
+type VisitorPointWithIdx = VisitorPoint & {
+  idx: number
+  __element?: HTMLDivElement
+}
+
+type GlobePointOfView = { lat: number; lng: number; altitude: number }
+
+interface GlobeControls {
+  autoRotate: boolean
+  autoRotateSpeed: number
+}
+
+interface GlobeCamera {
+  position: { x: number; y: number; z: number }
+}
+
+interface GlobeRenderer {
+  domElement?: HTMLElement
+  dispose?: () => void
+}
+
+// Minimal surface-area typing for the globe.gl instance we use.
+// globe.gl's runtime object is more complex; we only type what we call.
+interface GlobeInstance {
+  (el: HTMLElement): void
+
+  width: (n: number) => GlobeInstance
+  height: (n: number) => GlobeInstance
+  globeImageUrl: (url: string) => GlobeInstance
+  bumpImageUrl: (url: string) => GlobeInstance
+  backgroundImageUrl: (url: string) => GlobeInstance
+  atmosphereColor: (color: string) => GlobeInstance
+  atmosphereAltitude: (n: number) => GlobeInstance
+  showAtmosphere: (show: boolean) => GlobeInstance
+
+  pointColor: (fn: (p: VisitorPointWithIdx) => string) => GlobeInstance
+  pointAltitude: (fn: (p: VisitorPointWithIdx) => number) => GlobeInstance
+  pointRadius: (fn: (p: VisitorPointWithIdx) => number) => GlobeInstance
+  pointLabel: (fn: (p: VisitorPointWithIdx) => string) => GlobeInstance
+
+  htmlElementsData: {
+    (): VisitorPointWithIdx[] | undefined
+    (data: VisitorPointWithIdx[]): GlobeInstance
+  }
+  htmlElement: (fn: (d: VisitorPointWithIdx) => HTMLElement) => GlobeInstance
+  htmlLat: (fn: (d: VisitorPointWithIdx) => number) => GlobeInstance
+  htmlLng: (fn: (d: VisitorPointWithIdx) => number) => GlobeInstance
+  htmlAltitude: (fn: (d: VisitorPointWithIdx) => number) => GlobeInstance
+
+  pointsData: {
+    (): VisitorPointWithIdx[] | undefined
+    (data: VisitorPointWithIdx[]): GlobeInstance
+  }
+
+  controls: () => GlobeControls
+  camera: () => GlobeCamera
+  renderer: () => GlobeRenderer
+  pointOfView: (pov: GlobePointOfView, ms: number) => void
+}
+
+type GlobeFactory = () => GlobeInstance
+
+declare global {
+  interface Window {
+    Globe?: GlobeFactory
+  }
+}
+
  export default function InteractiveGlobe() {
    const containerRef = useRef<HTMLDivElement>(null)
    const globeMountRef = useRef<HTMLDivElement>(null)
--  const globeRef = useRef<any>(null)
-+  const globeRef = useRef<GlobeInstance | null>(null)
+   const globeRef = useRef<GlobeInstance | null>(null)
    const pulseIntervalRef = useRef<NodeJS.Timeout | null>(null)
    const interactionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
--  const scriptLoadedRef = useRef(false)
    const mountedRef = useRef(true)
  
    const [isReady, setIsReady] = useState(false)
@@ -100,10 +98,8 @@
    const [isMobile, setIsMobile] = useState(false)
    const [scriptReady, setScriptReady] = useState(false)
  
--  // Demo visitor data - hardcoded for demo
--  const visitorPoints: VisitorPoint[] = [
-+  // Demo visitor data - memoized to keep a stable reference (avoids hook dependency issues).
-+  const visitorPoints: VisitorPoint[] = useMemo(() => [
+  // Demo visitor data - memoized to keep a stable reference (avoids hook dependency issues).
+  const visitorPoints: VisitorPoint[] = useMemo(() => [
      // Recent visitors (pulsing blue)
      {
        lat: 37.7749,
@@ -325,64 +321,51 @@
        isRecent: false,
        avatarUrl: "https://i.pravatar.cc/150?img=20",
      },
--  ]
-+  ], [])
+  ], [])
  
    // Check mobile
    useEffect(() => {
      const checkMobile = () => {
        if (mountedRef.current) {
-@@ -167,26 +230,26 @@ export default function InteractiveGlobe() {
+export default function InteractiveGlobe() {
    // Initialize globe
    useEffect(() => {
      mountedRef.current = true
  
--    if (!globeMountRef.current || !scriptReady) {
-+    const globeMountEl = globeMountRef.current
-+    if (!globeMountEl || !scriptReady) {
+    const globeMountEl = globeMountRef.current
+    if (!globeMountEl || !scriptReady) {
        return
      }
  
      const initializeGlobe = async () => {
--      if (!globeMountRef.current || !mountedRef.current) return
-+      if (!globeMountEl || !mountedRef.current) return
+      if (!globeMountEl || !mountedRef.current) return
  
        try {
--        if (!(window as any).Globe) {
-+        if (!window.Globe) {
+        if (!window.Globe) {
            throw new Error("Globe not found on window")
          }
  
--        const Globe = (window as any).Globe
-+        const Globe: GlobeFactory = window.Globe
+        const Globe = (window as any).Globe
+        const Globe: GlobeFactory = window.Globe
          const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
  
--        const globe = Globe()
-+        const globe: GlobeInstance = Globe()
+        const globe: GlobeInstance = Globe()
  
          globe
--          .width(globeMountRef.current.clientWidth)
--          .height(globeMountRef.current.clientHeight)
-+          .width(globeMountEl.clientWidth)
-+          .height(globeMountEl.clientHeight)
+          .width(globeMountEl.clientWidth)
+          .height(globeMountEl.clientHeight)
            .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg")
            .bumpImageUrl("https://unpkg.com/three-globe/example/img/earth-topology.png")
            .backgroundImageUrl("https://unpkg.com/three-globe/example/img/night-sky.png")
            .atmosphereColor("#3b82f6")
            .atmosphereAltitude(0.15)
            .showAtmosphere(true)
--          .pointColor((p: any) => p.color)
--          .pointAltitude((p: any) => p.altitude)
--          .pointRadius((p: any) => p.radius)
--          .pointLabel((p: any) => `${p.city}, ${p.country}`)
--          .htmlElementsData(visitorPoints.map((point, idx) => ({ ...point, idx })))
--          .htmlElement((d: any) => {
-+          .pointColor((p: VisitorPointWithIdx) => p.color)
-+          .pointAltitude((p: VisitorPointWithIdx) => p.altitude)
-+          .pointRadius((p: VisitorPointWithIdx) => p.radius)
-+          .pointLabel((p: VisitorPointWithIdx) => `${p.city}, ${p.country}`)
-+          .htmlElementsData(visitorPoints.map((point, idx) => ({ ...point, idx })))
-+          .htmlElement((d: VisitorPointWithIdx) => {
+          .pointColor((p: VisitorPointWithIdx) => p.color)
+          .pointAltitude((p: VisitorPointWithIdx) => p.altitude)
+          .pointRadius((p: VisitorPointWithIdx) => p.radius)
+          .pointLabel((p: VisitorPointWithIdx) => `${p.city}, ${p.country}`)
+          .htmlElementsData(visitorPoints.map((point, idx) => ({ ...point, idx })))
+          .htmlElement((d: VisitorPointWithIdx) => {
              const el = document.createElement('div')
              el.style.cssText = `
                width: 40px;
@@ -421,97 +404,79 @@
  
              return el
            })
--          .htmlLat((d: any) => d.lat)
--          .htmlLng((d: any) => d.lng)
--          .htmlAltitude((d: any) => d.altitude)
-+          .htmlLat((d: VisitorPointWithIdx) => d.lat)
-+          .htmlLng((d: VisitorPointWithIdx) => d.lng)
-+          .htmlAltitude((d: VisitorPointWithIdx) => d.altitude)
+          .htmlLat((d: VisitorPointWithIdx) => d.lat)
+          .htmlLng((d: VisitorPointWithIdx) => d.lng)
+          .htmlAltitude((d: VisitorPointWithIdx) => d.altitude)
  
--        globe(globeMountRef.current)
-+        globe(globeMountEl)
+        globe(globeMountEl)
  
          globeRef.current = globe
  
          // Set initial camera position
          globe.pointOfView({ lat: 20, lng: -30, altitude: 2.5 }, 0)
-@@ -194,7 +257,7 @@ export default function InteractiveGlobe() {
+export default function InteractiveGlobe() {
          // Configure points data
          const pointsData = visitorPoints.map((point, idx) => ({
            ...point,
            idx,
            baseAltitude: point.altitude,
--        }))
-+        })) as VisitorPointWithIdx[]
+        })) as VisitorPointWithIdx[]
  
          globe.pointsData(pointsData)
  
          // Setup controls
-@@ -203,7 +266,7 @@ export default function InteractiveGlobe() {
+export default function InteractiveGlobe() {
            if (!mountedRef.current) return
  
            try {
              const controls = globe.controls()
-@@ -241,12 +304,10 @@ export default function InteractiveGlobe() {
+export default function InteractiveGlobe() {
                  }, 3000)
                }
  
--              const globeMount = globeMountRef.current
--              if (globeMount) {
--                globeMount.addEventListener("mousedown", onUserInteraction)
--                globeMount.addEventListener("touchstart", onUserInteraction)
--                globeMount.addEventListener("wheel", onUserInteraction)
--              }
-+              globeMountEl.addEventListener("mousedown", onUserInteraction)
-+              globeMountEl.addEventListener("touchstart", onUserInteraction)
-+              globeMountEl.addEventListener("wheel", onUserInteraction)
+              globeMountEl.addEventListener("mousedown", onUserInteraction)
+              globeMountEl.addEventListener("touchstart", onUserInteraction)
+              globeMountEl.addEventListener("wheel", onUserInteraction)
              }
            } catch (err) {
              console.warn("Error accessing controls:", err)
            }
-@@ -255,7 +316,7 @@ export default function InteractiveGlobe() {
+export default function InteractiveGlobe() {
          // Helper function to check if a point is visible from camera
          const isPointVisible = (lat: number, lng: number) => {
            try {
              const camera = globe.camera()
              if (!camera) return true
-@@ -281,8 +342,8 @@ export default function InteractiveGlobe() {
+export default function InteractiveGlobe() {
  
              return dotProduct > 0.15
--          } catch (err) {
--            return true
-+          } catch {
-+            return true
+          } catch {
+            return true
            }
          }
  
          // Setup pulse animation
-@@ -292,12 +353,12 @@ export default function InteractiveGlobe() {
+export default function InteractiveGlobe() {
            pulseIntervalRef.current = setInterval(() => {
              if (!mountedRef.current) return
  
              pulseTime += 0.016
--            const currentPointsData = globe.pointsData()
--            const currentHtmlData = globe.htmlElementsData()
-+            const currentPointsData = globe.pointsData()
-+            const currentHtmlData = globe.htmlElementsData()
+            const currentPointsData = globe.pointsData()
+            const currentHtmlData = globe.htmlElementsData()
  
              if (currentPointsData && Array.isArray(currentPointsData)) {
--              currentPointsData.forEach((point: any) => {
-+              currentPointsData.forEach((point: VisitorPointWithIdx) => {
+              currentPointsData.forEach((point: VisitorPointWithIdx) => {
                  if (point.isRecent) {
                    const pulse = Math.sin(pulseTime * 3 + point.idx) * 0.04
                    point.altitude = (point.baseAltitude || point.altitude) + pulse
                  }
                })
  
--              globe.pointAltitude((p: any) => p.altitude)
-+              globe.pointAltitude((p: VisitorPointWithIdx) => p.altitude)
+              globe.pointAltitude((p: VisitorPointWithIdx) => p.altitude)
              }
  
              if (currentHtmlData && Array.isArray(currentHtmlData)) {
--              currentHtmlData.forEach((point: any) => {
-+              currentHtmlData.forEach((point: VisitorPointWithIdx) => {
+              currentHtmlData.forEach((point: VisitorPointWithIdx) => {
                  if (point.isRecent) {
                    const pulse = Math.sin(pulseTime * 3 + point.idx) * 0.04
                    point.altitude = (point.baseAltitude || point.altitude) + pulse
@@ -524,8 +489,7 @@
                  }
                })
  
--              globe.htmlAltitude((d: any) => d.altitude)
-+              globe.htmlAltitude((d: VisitorPointWithIdx) => d.altitude)
+              globe.htmlAltitude((d: VisitorPointWithIdx) => d.altitude)
              }
            }, 16)
          }
@@ -541,8 +505,7 @@
      }
  
      // Initialize when script is ready
--    if ((window as any).Globe) {
-+    if (window.Globe) {
+    if (window.Globe) {
        initializeGlobe()
      } else {
        setError("Globe library not loaded")
@@ -583,28 +546,23 @@
        }
  
        // Clear the globe mount point
--      const globeMount = globeMountRef.current
--      if (globeMount) {
-+      if (globeMountEl) {
+      if (globeMountEl) {
          try {
--          while (globeMount.firstChild) {
--            globeMount.removeChild(globeMount.firstChild)
-+          while (globeMountEl.firstChild) {
-+            globeMountEl.removeChild(globeMountEl.firstChild)
+          while (globeMountEl.firstChild) {
+            globeMountEl.removeChild(globeMountEl.firstChild)
            }
          } catch (err) {
            console.warn("Error clearing globe mount:", err)
          }
        }
      }
--  }, [scriptReady])
-+  }, [scriptReady, visitorPoints])
+  }, [scriptReady, visitorPoints])
  
    return (
      <>
        <Script
          src="https://unpkg.com/globe.gl@2.31.0/dist/globe.gl.min.js"
-@@ -370,7 +431,7 @@ export default function InteractiveGlobe() {
+export default function InteractiveGlobe() {
          onError={() => {
            setError("Failed to load globe.gl library")
          }}
@@ -620,7 +578,7 @@
        >
          {/* Globe mount point - managed separately from React */}
          <div ref={globeMountRef} className="absolute inset-0" />
-@@ -420,7 +481,7 @@ export default function InteractiveGlobe() {
+export default function InteractiveGlobe() {
        {/* Demo info */}
        <div className="mt-6 text-center">
          <p className="text-sm text-gray-600 dark:text-gray-400">
@@ -631,4 +589,4 @@
      </div>
      </>
    )
-                  }
+}
