@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { type JwtPayload } from 'jsonwebtoken';
 
 const SECRET = process.env.JWT_SECRET || '';
 
@@ -25,13 +25,24 @@ export function generateMagicToken(userId: string, widgetId: string): string {
 
 export function verifyMagicToken(token: string): TokenPayload | null {
   try {
-    const decoded = jwt.verify(token, SECRET) as any;
+    const decoded = jwt.verify(token, SECRET);
+    if (typeof decoded !== 'object' || decoded === null) return null;
+
+    const payload = decoded as JwtPayload & Partial<TokenPayload>;
+    if (typeof payload.userId !== 'string' || typeof payload.widgetId !== 'string') {
+      return null;
+    }
+
     return {
-      userId: decoded.userId,
-      widgetId: decoded.widgetId,
+      userId: payload.userId,
+      widgetId: payload.widgetId,
     };
-  } catch (error: any) {
-    console.error('[Token] Verification failed:', error.message);
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error('[Token] Verification failed:', error.message);
+    } else {
+      console.error('[Token] Verification failed:', error);
+    }
     return null;
   }
 }
