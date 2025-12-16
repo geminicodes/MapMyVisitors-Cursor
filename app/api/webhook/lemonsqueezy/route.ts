@@ -356,8 +356,7 @@ export async function POST(request: Request): Promise<Response> {
 // Required for Node.js crypto module.
 export const runtime = 'nodejs';
 
-// Required by some setups to avoid body parsing; route handlers already provide raw access via request.text().
-// Kept intentionally to match security requirements.
-export const config = {
-  api: { bodyParser: false },
-};
+// Ensure the webhook is always executed dynamically and never cached.
+// (Route Handlers already expose raw request body via request.text(); bodyParser config is Pages Router-only.)
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
