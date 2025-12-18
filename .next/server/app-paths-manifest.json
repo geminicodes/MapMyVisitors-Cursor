@@ -1,14 +1,1 @@
-{
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/dashboard/route": "app/api/dashboard/route.js",
-  "/api/recover/route": "app/api/recover/route.js",
-  "/api/track/route": "app/api/track/route.js",
-  "/api/signup/route": "app/api/signup/route.js",
-  "/api/verify-token/route": "app/api/verify-token/route.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/demo/page": "app/demo/page.js",
-  "/recover/page": "app/recover/page.js",
-  "/page": "app/page.js",
-  "/api/visitors/[widgetId]/route": "app/api/visitors/[widgetId]/route.js",
-  "/api/webhook/lemonsqueezy/route": "app/api/webhook/lemonsqueezy/route.js"
-}
+{}
