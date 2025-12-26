@@ -51,7 +51,7 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
     "eslint": "^8.57.1",
-    "eslint-config-next": "^16.1.1",
+    "eslint-config-next": "^14.2.18",
     "input-otp": "^1.2.4",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.446.0",
