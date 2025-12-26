@@ -1,4 +1,4 @@
-// File: /workspaces/MapMyVisitors-Cursor/app/api/webhook/lemonsqueezy/route.ts
+// File: /workspace/app/api/webhook/lemonsqueezy/route.ts
 import * as entry from '../../../../../../app/api/webhook/lemonsqueezy/route.js'
 import type { NextRequest } from 'next/server.js'
 

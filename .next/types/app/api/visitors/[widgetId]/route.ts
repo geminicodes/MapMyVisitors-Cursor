@@ -1,4 +1,4 @@
-// File: /workspaces/MapMyVisitors-Cursor/app/api/visitors/[widgetId]/route.ts
+// File: /workspace/app/api/visitors/[widgetId]/route.ts
 import * as entry from '../../../../../../app/api/visitors/[widgetId]/route.js'
 import type { NextRequest } from 'next/server.js'
 

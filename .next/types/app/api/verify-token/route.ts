@@ -1,4 +1,4 @@
-// File: /workspaces/MapMyVisitors-Cursor/app/api/verify-token/route.ts
+// File: /workspace/app/api/verify-token/route.ts
 import * as entry from '../../../../../app/api/verify-token/route.js'
 import type { NextRequest } from 'next/server.js'
 

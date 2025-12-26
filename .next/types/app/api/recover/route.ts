@@ -1,4 +1,4 @@
-// File: /workspaces/MapMyVisitors-Cursor/app/api/recover/route.ts
+// File: /workspace/app/api/recover/route.ts
 import * as entry from '../../../../../app/api/recover/route.js'
 import type { NextRequest } from 'next/server.js'
 

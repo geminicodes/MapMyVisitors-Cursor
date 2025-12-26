@@ -1,4 +1,4 @@
-// File: /workspaces/MapMyVisitors-Cursor/app/api/dashboard/route.ts
+// File: /workspace/app/api/dashboard/route.ts
 import * as entry from '../../../../../app/api/dashboard/route.js'
 import type { NextRequest } from 'next/server.js'
 

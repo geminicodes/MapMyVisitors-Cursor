@@ -1,4 +1,4 @@
-// File: /workspaces/MapMyVisitors-Cursor/app/recover/page.tsx
+// File: /workspace/app/recover/page.tsx
 import * as entry from '../../../../app/recover/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
