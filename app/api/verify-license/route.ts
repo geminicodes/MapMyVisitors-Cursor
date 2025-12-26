@@ -70,8 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceClient();
-
-    async function generateUniqueWidgetId(): Promise<string> {
+    const generateUniqueWidgetId = async (): Promise<string> => {
       const maxAttempts = 5;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         const candidate = nanoid(12);
@@ -83,7 +82,7 @@ export async function POST(request: NextRequest) {
         if (!existing) return candidate;
       }
       throw new Error('Failed to generate unique widget id');
-    }
+    };
 
     const { data: existingCustomer, error: fetchError } = await supabase
       .from('customers')
