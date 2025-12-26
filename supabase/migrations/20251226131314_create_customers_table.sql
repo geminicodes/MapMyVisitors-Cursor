@@ -26,6 +26,9 @@
     - Status tracks account lifecycle
 */
 
+-- Required for gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE IF NOT EXISTS customers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text UNIQUE NOT NULL,
@@ -41,6 +44,35 @@ CREATE TABLE IF NOT EXISTS customers (
 );
 
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+
+-- Your app accesses `customers` via server-side service role key.
+-- This policy ensures it always works even when RLS is enabled.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'customers' AND policyname = 'Service role full access to customers'
+  ) THEN
+    CREATE POLICY "Service role full access to customers"
+      ON customers FOR ALL
+      USING (auth.role() = 'service_role')
+      WITH CHECK (auth.role() = 'service_role');
+  END IF;
+END $$;
+
+-- Optional: keep `updated_at` fresh
+CREATE OR REPLACE FUNCTION update_customers_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_customers_updated_at ON customers;
+CREATE TRIGGER update_customers_updated_at
+  BEFORE UPDATE ON customers
+  FOR EACH ROW
+  EXECUTE FUNCTION update_customers_updated_at_column();
 
 CREATE POLICY "Customers can read own data"
   ON customers
