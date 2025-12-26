@@ -2,107 +2,62 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Copy, Check, Loader2, AlertCircle, Globe } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Copy, Check, Loader2, AlertCircle, Globe, LogOut } from 'lucide-react';
 
-interface UserData {
+interface CustomerData {
+  id: string;
   email: string;
-  widgetId: string;
-  paid: boolean;
-  watermarkRemoved: boolean;
+  plan: string;
+  pageviews_used: number;
+  pageviews_limit: number;
+  website_domains: string[];
+  status: string;
 }
 
 export default function DashboardPage() {
-  const [widgetId, setWidgetId] = useState<string | null>(null);
-  const [userData, setUserData] = useState<UserData | null>(null);
+  const router = useRouter();
+  const [customerData, setCustomerData] = useState<CustomerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-
-  const verifyUser = async (id: string) => {
-    try {
-      const response = await fetch(`/api/dashboard?widgetId=${id}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 402) {
-          setError('payment-pending');
-        } else if (response.status === 404) {
-          setError('not-found');
-        } else {
-          setError('generic');
-        }
-        setLoading(false);
-        return;
-      }
-
-      setUserData(data.user);
-      setLoading(false);
-    } catch (error) {
-      console.error('[Dashboard] verifyUser failed:', error);
-      setError('network');
-      setLoading(false);
-    }
-  };
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    async function initialize() {
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get('token');
+    async function fetchCustomerData() {
+      try {
+        const response = await fetch('/api/customer');
 
-      if (token) {
-        try {
-          const response = await fetch(`/api/verify-token?token=${token}`);
-          const data = await response.json();
-
-          if (data.success) {
-            localStorage.setItem('mmv_widget_id', data.widgetId);
-            setWidgetId(data.widgetId);
-
-            window.history.replaceState({}, '', '/dashboard');
-
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 5000);
-
-            verifyUser(data.widgetId);
-          } else {
-            setError('invalid-token');
-            setLoading(false);
+        if (!response.ok) {
+          if (response.status === 401) {
+            router.push('/login');
+            return;
           }
-        } catch (error) {
-          console.error('[Dashboard] token verification failed:', error);
-          setError('network');
-          setLoading(false);
-        }
-      } else {
-        const id = localStorage.getItem('mmv_widget_id');
-        if (!id) {
-          setError('no-widget-id');
+          setError('generic');
           setLoading(false);
           return;
         }
-        setWidgetId(id);
-        verifyUser(id);
-      }
 
-      if (params.get('success') === 'true') {
-        setShowSuccess(true);
-        window.history.replaceState({}, '', '/dashboard');
-        setTimeout(() => setShowSuccess(false), 5000);
+        const data = await response.json();
+        setCustomerData(data.customer);
+        setLoading(false);
+      } catch (err) {
+        setError('network');
+        setLoading(false);
       }
     }
 
-    initialize();
-  }, []);
+    fetchCustomerData();
+  }, [router]);
 
   const handleCopy = async () => {
-    if (!widgetId) return;
+    if (!customerData) return;
 
     const widgetCode = `<!-- Step 1: Add container (optional) -->
 <div id="mapmyvisitors-widget"></div>
 
 <!-- Step 2: Add widget script -->
-<script src="https://mapmyvisitors.com/widget.js?id=${widgetId}"></script>`;
+<script src="https://mapmyvisitors.com/widget.js?id=${customerData.id}"></script>`;
 
     try {
       await navigator.clipboard.writeText(widgetCode);
@@ -114,12 +69,21 @@ export default function DashboardPage() {
     }
   };
 
-  const handleRetry = () => {
-    if (widgetId) {
-      setLoading(true);
-      setError(null);
-      verifyUser(widgetId);
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      setLoggingOut(false);
     }
+  };
+
+  const handleRetry = () => {
+    setLoading(true);
+    setError(null);
+    window.location.reload();
   };
 
   if (loading) {
@@ -135,65 +99,19 @@ export default function DashboardPage() {
 
   if (error) {
     const errorConfig = {
-      'no-widget-id': {
-        icon: <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />,
-        heading: 'Widget ID Not Found',
-        message: "It looks like you haven't signed up yet or lost your widget code.",
-        subtext: "Sign up on the homepage or recover your existing account if you already paid.",
-        buttonText: 'Recover Account',
-        buttonAction: () => {},
-        isLink: true,
-        linkTo: '/recover',
-      },
-      'payment-pending': {
-        icon: <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />,
-        heading: 'Payment Pending',
-        message: "We're processing your payment. This usually takes 1-2 minutes. Please refresh this page in a moment.",
-        subtext: "If it takes longer than 5 minutes, check your email for confirmation or contact support.",
-        buttonText: 'Refresh Page',
-        buttonAction: () => window.location.reload(),
-        isLink: false,
-        linkTo: undefined,
-      },
-      'not-found': {
-        icon: <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />,
-        heading: 'Account Not Found',
-        message: "This widget ID doesn't exist in our system. Please sign up again.",
-        subtext: undefined,
-        buttonText: 'Sign Up Again',
-        buttonAction: () => {},
-        isLink: true,
-        linkTo: '/',
-      },
       'network': {
         icon: <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />,
         heading: 'Connection Error',
         message: 'Unable to load your dashboard. Please check your internet connection.',
-        subtext: undefined,
         buttonText: 'Retry',
         buttonAction: handleRetry,
-        isLink: false,
-        linkTo: undefined,
       },
       'generic': {
         icon: <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />,
         heading: 'Something Went Wrong',
         message: 'Failed to load dashboard. Please try again.',
-        subtext: undefined,
         buttonText: 'Retry',
         buttonAction: handleRetry,
-        isLink: false,
-        linkTo: undefined,
-      },
-      'invalid-token': {
-        icon: <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />,
-        heading: 'Invalid or Expired Link',
-        message: 'This magic link has expired or is invalid. Please request a new one.',
-        subtext: undefined,
-        buttonText: 'Request New Link',
-        buttonAction: () => {},
-        isLink: true,
-        linkTo: '/recover',
       },
     };
 
@@ -204,61 +122,55 @@ export default function DashboardPage() {
         <div className="max-w-md w-full bg-space-card border border-space-border rounded-2xl p-8 text-center">
           {config.icon}
           <h1 className="text-3xl font-bold mb-4">{config.heading}</h1>
-          <p className="text-text-secondary mb-2">{config.message}</p>
-          {config.subtext && (
-            <p className="text-text-muted text-sm mb-6">{config.subtext}</p>
-          )}
-          {config.isLink ? (
-            <Link
-              href={config.linkTo || '/'}
-              className="inline-block px-6 py-3 bg-gradient-to-r from-accent-blue to-accent-purple text-white font-semibold rounded-lg hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-accent-blue/50"
-            >
-              {config.buttonText}
-            </Link>
-          ) : (
-            <button
-              onClick={config.buttonAction}
-              className="px-6 py-3 bg-gradient-to-r from-accent-blue to-accent-purple text-white font-semibold rounded-lg hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-accent-blue/50"
-            >
-              {config.buttonText}
-            </button>
-          )}
+          <p className="text-text-secondary mb-6">{config.message}</p>
+          <button
+            onClick={config.buttonAction}
+            className="px-6 py-3 bg-gradient-to-r from-accent-blue to-accent-purple text-white font-semibold rounded-lg hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-accent-blue/50"
+          >
+            {config.buttonText}
+          </button>
         </div>
       </div>
     );
   }
 
-  if (!userData) {
+  if (!customerData) {
     return null;
   }
 
+  const percentageUsed = (customerData.pageviews_used / customerData.pageviews_limit) * 100;
+
   return (
     <div className="min-h-screen bg-space-dark">
-      {showSuccess && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-accent-green p-4 text-center text-white font-medium animate-slide-down">
-          ✓ Payment successful! Your widget is ready.
-        </div>
-      )}
-
       <div className="max-w-4xl mx-auto px-6 py-20">
-        <div className="flex items-center justify-center mb-8">
-          <Globe className="w-10 h-10 text-accent-blue mr-3" aria-hidden="true" />
-          <Link href="/" className="text-2xl font-bold hover:text-accent-blue transition-colors">
-            MapMyVisitors
-          </Link>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center">
+            <Globe className="w-10 h-10 text-accent-blue mr-3" aria-hidden="true" />
+            <Link href="/" className="text-2xl font-bold hover:text-accent-blue transition-colors">
+              MapMyVisitors
+            </Link>
+          </div>
+          <button
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="flex items-center gap-2 px-4 py-2 bg-space-card border border-space-border rounded-lg hover:bg-space-dark transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            {loggingOut ? 'Logging out...' : 'Logout'}
+          </button>
         </div>
 
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4">Your Globe is Ready! 🎉</h1>
+          <h1 className="text-5xl font-bold mb-4">Your Globe is Ready!</h1>
           <p className="text-lg font-medium text-text-secondary mb-2">
             Copy the code below and paste it on your website
           </p>
           <p className="text-sm text-text-muted">
-            Logged in as: {userData.email}
+            Logged in as: {customerData.email}
           </p>
         </div>
 
-        <div className="relative mb-12">
+        <div className="relative mb-8">
           <div className="absolute inset-0 bg-gradient-to-br from-accent-blue/20 to-accent-purple/20 rounded-3xl blur-3xl" aria-hidden="true"></div>
 
           <div
@@ -276,7 +188,7 @@ export default function DashboardPage() {
 <div id="mapmyvisitors-widget"></div>
 
 <!-- Step 2: Add widget script -->
-<script src="https://mapmyvisitors.com/widget.js?id=${widgetId}"></script>`}
+<script src="https://mapmyvisitors.com/widget.js?id=${customerData.id}"></script>`}
               </pre>
             </div>
 
@@ -301,6 +213,44 @@ export default function DashboardPage() {
             <p className="text-sm text-text-secondary">
               Paste this code anywhere in your HTML, just before the closing &lt;/body&gt; tag
             </p>
+          </div>
+        </div>
+
+        <div className="relative mb-12">
+          <div className="p-6 bg-space-card border border-space-border rounded-2xl">
+            <h2 className="text-xl font-semibold mb-4">Usage Statistics</h2>
+
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-text-secondary">Pageviews Used</span>
+                  <span className="text-text-primary font-medium">
+                    {customerData.pageviews_used.toLocaleString()} / {customerData.pageviews_limit.toLocaleString()}
+                  </span>
+                </div>
+                <div className="w-full bg-space-dark rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-accent-blue to-accent-purple transition-all duration-300"
+                    style={{ width: `${Math.min(percentageUsed, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-space-border">
+                <div>
+                  <p className="text-sm text-text-muted mb-1">Plan</p>
+                  <p className="text-lg font-semibold capitalize">{customerData.plan}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-text-muted mb-1">Status</p>
+                  <p className="text-lg font-semibold capitalize">
+                    <span className={customerData.status === 'active' ? 'text-accent-green' : 'text-red-500'}>
+                      {customerData.status}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

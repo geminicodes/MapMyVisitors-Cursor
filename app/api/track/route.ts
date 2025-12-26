@@ -103,9 +103,9 @@ async function incrementMonthlyPageviews(supabase: ReturnType<typeof createServi
 }
 
 export async function OPTIONS() {
-   return new NextResponse(null, {
-     status: 200,
-     headers: {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
@@ -179,10 +179,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { allowed } = await checkMonthlyLimit(supabase, user.id);
- 
-     if (!allowed) {
-       return NextResponse.json(
+    const { allowed, currentCount } = await checkMonthlyLimit(supabase, user.id);
+
+    if (!allowed) {
+      return NextResponse.json(
         { success: false, error: 'Monthly limit reached (10,000 pageviews)' },
         { status: 429, headers }
       );

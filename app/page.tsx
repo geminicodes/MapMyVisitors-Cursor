@@ -3,10 +3,16 @@
 import { useState, useEffect } from 'react';
 import { Globe, Zap, Code, Check } from 'lucide-react';
 import InteractiveGlobe from '@/components/DemoGlobe';
+import Link from 'next/link';
 
 export default function Home() {
-  const [email, setEmail] = useState('');
   const [isScrolled, setIsScrolled] = useState(false);
+  const [visitorCount, setVisitorCount] = useState(245);
+
+  useEffect(() => {
+    const randomCount = Math.floor(Math.random() * (400 - 100 + 1)) + 100;
+    setVisitorCount(randomCount);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,19 +23,6 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const scrollToPricing = () => {
-    const pricingSection = document.getElementById('pricing');
-    pricingSection?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleEmailSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailRegex.test(email)) {
-      console.log('Email submitted:', email);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-space-dark">
       <header
@@ -38,16 +31,16 @@ export default function Home() {
         }`}
       >
         <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <Globe className="w-8 h-8 text-accent-blue" aria-label="MapMyVisitors logo" />
             <span className="text-xl font-bold">MapMyVisitors</span>
-          </div>
-          <button
-            onClick={scrollToPricing}
+          </Link>
+          <Link
+            href="/login"
             className="px-6 py-3 bg-gradient-to-r from-accent-blue to-accent-purple text-white font-medium rounded-lg hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-accent-blue/50"
           >
-            Get Started - $29
-          </button>
+            Sign In
+          </Link>
         </div>
       </header>
 
@@ -57,7 +50,7 @@ export default function Home() {
             <div className="flex flex-col items-center text-center">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-space-card border border-space-border mb-8">
                 <span className="w-2 h-2 bg-accent-green rounded-full animate-pulse" aria-hidden="true"></span>
-                <span className="text-sm text-text-secondary">245 people watching now</span>
+                <span className="text-sm text-text-secondary">{visitorCount} people watching now</span>
               </div>
 
               <h1 className="text-6xl md:text-6xl font-bold mb-6 max-w-4xl leading-tight">
@@ -91,12 +84,14 @@ export default function Home() {
                 </div>
               </div>
 
-              <button
-                onClick={scrollToPricing}
-                className="px-8 py-4 text-lg bg-gradient-to-r from-accent-blue to-accent-purple text-white font-bold rounded-lg hover:-translate-y-0.5 transition-all duration-200 shadow-xl hover:shadow-accent-blue/50 mb-4"
+              <a
+                href="https://valentinadeveloper.gumroad.com/l/map-my-visitors"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block px-8 py-4 text-lg bg-gradient-to-r from-accent-blue to-accent-purple text-white font-bold rounded-lg hover:-translate-y-0.5 transition-all duration-200 shadow-xl hover:shadow-accent-blue/50 mb-4"
               >
-                Get Your Globe - $29
-              </button>
+                Buy now
+              </a>
 
               <p className="text-sm text-text-muted">
                 One-time payment • 10,000 views/month • Lifetime updates
@@ -146,7 +141,7 @@ export default function Home() {
                 <div className="w-20 h-20 rounded-full bg-gradient-to-r from-accent-blue to-accent-purple flex items-center justify-center text-4xl font-bold mb-6 relative z-10">
                   1
                 </div>
-                <h3 className="text-2xl font-bold mb-3">Sign Up & Pay $29</h3>
+                <h3 className="text-2xl font-bold mb-3">Purchase</h3>
                 <p className="text-base text-text-secondary">
                   One-time payment. Get instant access to your dashboard.
                 </p>
@@ -172,6 +167,15 @@ export default function Home() {
                 </p>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="py-8 px-6">
+          <div className="max-w-6xl mx-auto text-center">
+            <h2 className="text-5xl font-bold mb-6">Ready to Show Off Your Global Reach?</h2>
+            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
+              Join indie hackers proudly displaying their visitor map
+            </p>
           </div>
         </section>
 
@@ -218,47 +222,22 @@ export default function Home() {
                   +$19 to remove watermark
                 </p>
 
-                <form onSubmit={handleEmailSubmit} className="space-y-4">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    className="w-full h-14 px-4 bg-space-dark border border-space-border rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent-blue"
-                    required
-                    aria-label="Email address"
-                  />
-                  <button
-                    type="submit"
-                    className="w-full py-4 bg-gradient-to-r from-accent-blue to-accent-purple text-white font-bold rounded-xl hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-accent-blue/50"
-                  >
-                    Get Started Now - $29
-                  </button>
-                </form>
+                <a
+                  href="https://valentinadeveloper.gumroad.com/l/map-my-visitors"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full py-4 bg-gradient-to-r from-accent-blue to-accent-purple text-white font-bold rounded-xl hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-accent-blue/50 text-center"
+                >
+                  Buy now
+                </a>
 
                 <p className="text-sm text-text-muted text-center mt-6">
-                  30-day money-back guarantee
+                  <Link href="/refund-policy" className="hover:text-accent-blue transition-colors underline">
+                    30-day money-back guarantee
+                  </Link>
                 </p>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="py-20 px-6">
-          <div className="max-w-6xl mx-auto text-center">
-            <h2 className="text-5xl font-bold mb-6">Ready to Show Off Your Global Reach?</h2>
-            <p className="text-xl text-text-secondary mb-8 max-w-2xl mx-auto">
-              Join indie hackers proudly displaying their visitor map
-            </p>
-            <button
-              onClick={scrollToPricing}
-              className="px-8 py-4 text-lg bg-gradient-to-r from-accent-blue to-accent-purple text-white font-bold rounded-lg hover:-translate-y-0.5 transition-all duration-200 shadow-xl hover:shadow-accent-blue/50 mb-4"
-            >
-              Get Your Globe - $29
-            </button>
-            <p className="text-sm text-text-muted">
-              One-time • Instant access • 30-day guarantee
-            </p>
           </div>
         </section>
       </main>
@@ -276,15 +255,11 @@ export default function Home() {
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-text-secondary">
-              <a href="/recover" className="hover:text-text-primary transition-colors">Recover Account</a>
+              <Link href="/privacy" className="hover:text-text-primary transition-colors">Privacy Policy</Link>
               <span>•</span>
-              <a href="#" className="hover:text-text-primary transition-colors">About</a>
+              <Link href="/terms" className="hover:text-text-primary transition-colors">Terms of Service</Link>
               <span>•</span>
-              <a href="#" className="hover:text-text-primary transition-colors">Privacy Policy</a>
-              <span>•</span>
-              <a href="#" className="hover:text-text-primary transition-colors">Terms of Service</a>
-              <span>•</span>
-              <a href="#" className="hover:text-text-primary transition-colors">Contact</a>
+              <Link href="/refund-policy" className="hover:text-text-primary transition-colors">Refund Policy</Link>
             </div>
 
             <p className="text-sm text-text-muted">
