@@ -1,7 +1,6 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
   "/api/customer/route": "app/api/customer/route.js",
-  "/api/dashboard/route": "app/api/dashboard/route.js",
   "/api/logout/route": "app/api/logout/route.js",
   "/api/recover/route": "app/api/recover/route.js",
   "/api/signup/route": "app/api/signup/route.js",
@@ -10,12 +9,13 @@
   "/api/verify-token/route": "app/api/verify-token/route.js",
   "/dashboard/page": "app/dashboard/page.js",
   "/demo/page": "app/demo/page.js",
-  "/page": "app/page.js",
   "/login/page": "app/login/page.js",
   "/privacy/page": "app/privacy/page.js",
+  "/page": "app/page.js",
   "/recover/page": "app/recover/page.js",
-  "/terms/page": "app/terms/page.js",
   "/refund-policy/page": "app/refund-policy/page.js",
+  "/terms/page": "app/terms/page.js",
+  "/api/dashboard/route": "app/api/dashboard/route.js",
   "/api/visitors/[widgetId]/route": "app/api/visitors/[widgetId]/route.js",
   "/api/webhook/lemonsqueezy/route": "app/api/webhook/lemonsqueezy/route.js"
 }
