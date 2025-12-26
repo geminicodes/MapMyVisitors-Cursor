@@ -48,7 +48,7 @@ function getMagicLinkEmailTemplate(magicLink: string): string {
 export async function sendMagicLinkEmail(
   email: string,
   magicLink: string
-): Promise<{ success: boolean; error?: unknown }> {
+): Promise<{ success: boolean; error?: any }> {
   try {
     await resend.emails.send({
       from: 'MapMyVisitors <onboarding@resend.dev>',
