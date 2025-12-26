@@ -33,6 +33,7 @@ export async function GET() {
         id: customerData.id,
         email: customerData.email,
         plan: customerData.plan,
+        widget_id: customerData.widget_id,
         pageviews_used: customerData.pageviews_used,
         pageviews_limit: customerData.pageviews_limit,
         website_domains: customerData.website_domains,

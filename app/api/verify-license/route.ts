@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createToken, setAuthCookie } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase';
+import { nanoid } from 'nanoid';
 
 const GUMROAD_API_TOKEN = process.env.GUMROAD_API_TOKEN;
 const GUMROAD_PRODUCT_ID = process.env.GUMROAD_PRODUCT_ID;
@@ -32,9 +33,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedLicenseKey = String(licenseKey).trim();
+
     const formData = new URLSearchParams();
     formData.append('product_id', GUMROAD_PRODUCT_ID);
-    formData.append('license_key', licenseKey);
+    formData.append('license_key', normalizedLicenseKey);
     formData.append('increment_uses_count', 'false');
 
     const gumroadResponse = await fetch(
@@ -57,7 +61,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (data.purchase?.email !== email) {
+    const purchaseEmail = data.purchase?.email ? data.purchase.email.trim().toLowerCase() : '';
+    if (!purchaseEmail || purchaseEmail !== normalizedEmail) {
       return NextResponse.json(
         { message: 'Email does not match license' },
         { status: 401 }
@@ -65,10 +70,25 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceClient();
+
+    async function generateUniqueWidgetId(): Promise<string> {
+      const maxAttempts = 5;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const candidate = nanoid(12);
+        const { data: existing } = await supabase
+          .from('users')
+          .select('id')
+          .eq('widget_id', candidate)
+          .maybeSingle();
+        if (!existing) return candidate;
+      }
+      throw new Error('Failed to generate unique widget id');
+    }
+
     const { data: existingCustomer, error: fetchError } = await supabase
       .from('customers')
       .select('*')
-      .eq('license_key', licenseKey)
+      .eq('license_key', normalizedLicenseKey)
       .maybeSingle();
 
     if (fetchError) {
@@ -82,7 +102,7 @@ export async function POST(request: NextRequest) {
     let customer;
 
     if (existingCustomer) {
-      if (existingCustomer.email !== email) {
+      if (String(existingCustomer.email).trim().toLowerCase() !== normalizedEmail) {
         return NextResponse.json(
           { message: 'This license key is already registered to another email' },
           { status: 401 }
@@ -91,11 +111,72 @@ export async function POST(request: NextRequest) {
 
       customer = existingCustomer;
     } else {
+      // Ensure there is a `users` row for tracking & visitor endpoints.
+      const { data: existingUser, error: userFetchError } = await supabase
+        .from('users')
+        .select('id, widget_id')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+
+      if (userFetchError) {
+        console.error('Database error (users lookup):', userFetchError);
+        return NextResponse.json(
+          { message: 'Database error. Please try again.' },
+          { status: 500 }
+        );
+      }
+
+      let userId: string;
+      let widgetId: string;
+
+      if (existingUser) {
+        userId = existingUser.id;
+        widgetId = existingUser.widget_id;
+
+        // Mark paid to enable tracking routes.
+        const { error: userUpdateError } = await supabase
+          .from('users')
+          .update({ paid: true })
+          .eq('id', userId);
+
+        if (userUpdateError) {
+          console.error('Database error (users update):', userUpdateError);
+          return NextResponse.json(
+            { message: 'Database error. Please try again.' },
+            { status: 500 }
+          );
+        }
+      } else {
+        widgetId = await generateUniqueWidgetId();
+
+        const { data: newUser, error: userInsertError } = await supabase
+          .from('users')
+          .insert({
+            email: normalizedEmail,
+            widget_id: widgetId,
+            paid: true,
+          })
+          .select('id')
+          .single();
+
+        if (userInsertError) {
+          console.error('Database insert error (users):', userInsertError);
+          return NextResponse.json(
+            { message: 'Database error. Please try again.' },
+            { status: 500 }
+          );
+        }
+
+        userId = newUser.id;
+      }
+
       const { data: newCustomer, error: insertError } = await supabase
         .from('customers')
         .insert({
-          email,
-          license_key: licenseKey,
+          email: normalizedEmail,
+          license_key: normalizedLicenseKey,
+          widget_id: widgetId,
+          user_id: userId,
           plan: 'basic',
           purchased_at: data.purchase?.sale_timestamp || new Date().toISOString(),
           pageviews_used: 0,
