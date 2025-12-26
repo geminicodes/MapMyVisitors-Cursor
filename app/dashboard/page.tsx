@@ -9,6 +9,7 @@ interface CustomerData {
   id: string;
   email: string;
   plan: string;
+  widget_id: string;
   pageviews_used: number;
   pageviews_limit: number;
   website_domains: string[];
@@ -57,7 +58,7 @@ export default function DashboardPage() {
 <div id="mapmyvisitors-widget"></div>
 
 <!-- Step 2: Add widget script -->
-<script src="https://mapmyvisitors.com/widget.js?id=${customerData.id}"></script>`;
+<script src="https://mapmyvisitors.com/widget.js?id=${customerData.widget_id}"></script>`;
 
     try {
       await navigator.clipboard.writeText(widgetCode);
@@ -188,7 +189,7 @@ export default function DashboardPage() {
 <div id="mapmyvisitors-widget"></div>
 
 <!-- Step 2: Add widget script -->
-<script src="https://mapmyvisitors.com/widget.js?id=${customerData.id}"></script>`}
+<script src="https://mapmyvisitors.com/widget.js?id=${customerData.widget_id}"></script>`}
               </pre>
             </div>
 
