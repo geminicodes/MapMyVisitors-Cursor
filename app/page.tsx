@@ -37,7 +37,7 @@ export default function Home() {
           </Link>
           <Link
             href="/login"
-            className="px-6 py-3 bg-gradient-to-r from-accent-blue to-accent-purple text-white font-medium rounded-lg hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-accent-blue/50"
+            className="px-6 h-10 flex items-center bg-gradient-to-r from-accent-blue to-accent-purple text-white font-medium rounded-lg hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-accent-blue/50"
           >
             Sign In
           </Link>
@@ -45,20 +45,22 @@ export default function Home() {
       </header>
 
       <main>
-        <section className="pt-32 pb-20 px-6">
+        <section className="pt-28 md:pt-32 pb-20 px-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col items-center text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-space-card border border-space-border mb-8">
-                <span className="w-2 h-2 bg-accent-green rounded-full animate-pulse" aria-hidden="true"></span>
-                <span className="text-sm text-text-secondary">{visitorCount} people watching now</span>
-              </div>
-
-              <h1 className="text-6xl md:text-6xl font-bold mb-6 max-w-4xl leading-tight">
+              <h1 className="text-3xl md:text-6xl font-bold mb-6 max-w-4xl leading-tight">
                 Show The World Where{' '}
                 <span className="bg-gradient-to-r from-accent-blue to-accent-purple bg-clip-text text-transparent">
                   Your Visitors Come From
                 </span>
               </h1>
+
+              <div className="w-full max-w-[800px] mb-8 relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-accent-blue/20 to-accent-purple/20 rounded-3xl blur-3xl" aria-hidden="true"></div>
+                <div className="relative">
+                  <InteractiveGlobe />
+                </div>
+              </div>
 
               <div className="flex flex-wrap items-center justify-center gap-4 mb-12 text-text-secondary">
                 <span className="flex items-center gap-2 text-base">
@@ -75,13 +77,6 @@ export default function Home() {
                   <Zap className="w-4 h-4" aria-hidden="true" />
                   Real-Time Updates
                 </span>
-              </div>
-
-              <div className="w-full max-w-[800px] mb-8 relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-accent-blue/20 to-accent-purple/20 rounded-3xl blur-3xl" aria-hidden="true"></div>
-                <div className="relative">
-                  <InteractiveGlobe />
-                </div>
               </div>
 
               <a
@@ -173,9 +168,13 @@ export default function Home() {
         <section className="py-8 px-6">
           <div className="max-w-6xl mx-auto text-center">
             <h2 className="text-5xl font-bold mb-6">Ready to Show Off Your Global Reach?</h2>
-            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
+            <p className="text-xl text-text-secondary max-w-2xl mx-auto mb-6">
               Join indie hackers proudly displaying their visitor map
             </p>
+            <div className="md:hidden inline-flex items-center gap-2 px-4 py-2 rounded-full bg-space-card border border-space-border">
+              <span className="w-2 h-2 bg-accent-green rounded-full animate-pulse" aria-hidden="true"></span>
+              <span className="text-sm text-text-secondary">{visitorCount} people watching now</span>
+            </div>
           </div>
         </section>
 
@@ -190,7 +189,7 @@ export default function Home() {
                   boxShadow: '0 0 60px rgba(59, 130, 246, 0.2)'
                 }}
               >
-                <div className="absolute top-8 right-8">
+                <div className="flex justify-center md:justify-end mb-4 md:mb-0 md:absolute md:top-8 md:right-8">
                   <span className="px-3 py-1 bg-accent-green/20 text-accent-green text-xs font-medium rounded-full border border-accent-green/30">
                     One-Time Payment
                   </span>
