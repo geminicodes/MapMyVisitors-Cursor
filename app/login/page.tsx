@@ -44,17 +44,23 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-space-dark flex flex-col">
       <header className="px-6 py-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <Globe className="w-8 h-8 text-accent-blue" aria-label="MapMyVisitors logo" />
             <span className="text-xl font-bold">MapMyVisitors</span>
           </Link>
+          <Link
+            href="/"
+            className="flex px-6 h-10 items-center bg-gradient-to-r from-accent-blue to-accent-purple text-white font-medium rounded-lg hover:-translate-y-0.5 transition-all duration-200 shadow-lg hover:shadow-accent-blue/50"
+          >
+            Back
+          </Link>
         </div>
       </header>
 
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      <div className="flex-1 flex items-start md:items-center justify-center px-6 pt-2 pb-6 md:py-12">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
+          <div className="text-center mb-4 md:mb-8">
             <h1 className="text-4xl font-bold mb-3">Access Your Dashboard</h1>
             <p className="text-text-secondary">
               Enter your email and license key from your Gumroad purchase
@@ -137,6 +143,33 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      <footer className="py-12 px-6 border-t border-space-border">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col items-center text-center gap-6">
+            <div className="flex items-center gap-2">
+              <Globe className="w-6 h-6 text-accent-blue" aria-hidden="true" />
+              <span className="text-lg font-bold">MapMyVisitors</span>
+            </div>
+
+            <p className="text-text-secondary">
+              Show the world where your visitors come from
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-text-secondary">
+              <Link href="/privacy" className="hover:text-text-primary transition-colors">Privacy Policy</Link>
+              <span>•</span>
+              <Link href="/terms" className="hover:text-text-primary transition-colors">Terms of Service</Link>
+              <span>•</span>
+              <Link href="/refund-policy" className="hover:text-text-primary transition-colors">Refund Policy</Link>
+            </div>
+
+            <p className="text-sm text-text-muted">
+              © 2024 MapMyVisitors. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
