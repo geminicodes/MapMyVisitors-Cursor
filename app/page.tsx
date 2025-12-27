@@ -48,6 +48,10 @@ export default function Home() {
         <section className="pt-28 md:pt-32 pb-20 px-6">
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col items-center text-center">
+              <div className="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-full bg-space-card border border-space-border mb-6">
+                <span className="w-2 h-2 bg-accent-green rounded-full animate-pulse" aria-hidden="true"></span>
+                <span className="text-sm text-text-secondary">{visitorCount} people watching now</span>
+              </div>
               <h1 className="text-3xl md:text-6xl font-bold mb-6 max-w-4xl leading-tight">
                 Show The World Where{' '}
                 <span className="bg-gradient-to-r from-accent-blue to-accent-purple bg-clip-text text-transparent">
