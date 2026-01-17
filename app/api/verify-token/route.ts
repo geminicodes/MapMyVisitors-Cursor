@@ -3,6 +3,9 @@ import { verifyMagicToken } from '@/lib/token';
 import { createServiceClient } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   try {
     const token = request.nextUrl.searchParams.get('token');

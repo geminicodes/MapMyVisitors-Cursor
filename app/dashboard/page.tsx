@@ -42,7 +42,7 @@ export default function DashboardPage() {
         const data = await response.json();
         setCustomerData(data.customer);
         setLoading(false);
-      } catch (err) {
+      } catch {
         setError('network');
         setLoading(false);
       }
@@ -64,8 +64,7 @@ export default function DashboardPage() {
       await navigator.clipboard.writeText(widgetCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('Copy failed:', error);
+    } catch {
       alert('Failed to copy. Please copy the code manually.');
     }
   };
@@ -75,8 +74,7 @@ export default function DashboardPage() {
     try {
       await fetch('/api/logout', { method: 'POST' });
       router.push('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
+    } catch {
       setLoggingOut(false);
     }
   };

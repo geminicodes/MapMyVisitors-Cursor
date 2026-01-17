@@ -3,6 +3,9 @@ import { createServiceClient } from '@/lib/supabase';
 import { createInMemoryRateLimiter } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const dashboardLimiter = createInMemoryRateLimiter({
   windowMs: 60 * 1000,
   max: 60,

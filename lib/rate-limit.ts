@@ -22,16 +22,26 @@ export function createInMemoryRateLimiter(options: RateLimitOptions) {
 
   function prune(now: number) {
     if (store.size <= maxEntries) return;
-    // Remove expired entries first; if still too big, drop oldest keys iteratively.
-    for (const [key, entry] of store) {
-      if (now > entry.resetAt) store.delete(key);
+    // Avoid `for..of` over Map to support TS `target: es5`.
+    const expiredKeys: string[] = [];
+    store.forEach((entry, key) => {
+      if (now > entry.resetAt) expiredKeys.push(key);
+    });
+    for (const key of expiredKeys) {
+      store.delete(key);
       if (store.size <= maxEntries) return;
     }
-    // Still too big: delete in insertion order until under limit.
-    while (store.size > maxEntries) {
-      const firstKey = store.keys().next().value as string | undefined;
-      if (!firstKey) break;
-      store.delete(firstKey);
+
+    if (store.size <= maxEntries) return;
+
+    // Still too big: drop oldest keys by insertion order (best-effort).
+    const keysInOrder: string[] = [];
+    store.forEach((_entry, key) => {
+      keysInOrder.push(key);
+    });
+    const overflow = store.size - maxEntries;
+    for (let i = 0; i < overflow && i < keysInOrder.length; i++) {
+      store.delete(keysInOrder[i]);
     }
   }
 

@@ -106,3 +106,24 @@ Issue: No documented environment variable template existed.
 Fix: Added `.env.example` covering all required runtime configuration keys.  
 Why: Prevents deploy-time crashes and misconfiguration.
 
+File: package.json / package-lock.json  
+Line: 1  
+Severity: High  
+Issue: `npm audit` reported high severity command-injection vulnerability in a transitive `glob` dependency pulled in by `eslint-config-next`.  
+Fix: Added an npm `overrides` pin to `glob@10.5.0` and updated lockfile.  
+Why: Eliminates known vulnerable transitive dependency without requiring a major Next.js upgrade.
+
+File: components/DemoGlobe.tsx  
+Line: 1  
+Severity: Medium  
+Issue: Multiple lint/type issues (`any`, unused refs/vars, missing hook deps) and missing cleanup of DOM event listeners.  
+Fix: Added minimal type definitions for `globe.gl`, stabilized demo data with `useMemo`, fixed deps, and ensured interaction listeners are removed during cleanup.  
+Why: Prevents runtime leaks and ensures strict TypeScript and ESLint pass.
+
+File: app/* and components/ui/* (multiple)  
+Line: Various  
+Severity: Low  
+Issue: Lint failures due to unused variables and unescaped JSX entities.  
+Fix: Removed unused catch bindings, replaced problematic quotes/apostrophes with HTML entities, and simplified prop signatures where props were unused.  
+Why: Keeps CI/build green and avoids subtle rendering/escaping issues.
+

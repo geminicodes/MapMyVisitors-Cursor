@@ -29,7 +29,7 @@ export default function TermsOfService() {
               <h2 className="text-3xl font-bold mb-4">1. Acceptance of Terms</h2>
               <div className="space-y-4 text-text-secondary">
                 <p>
-                  By accessing or using MapMyVisitors ("the Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not use the Service.
+                  By accessing or using MapMyVisitors (&quot;the Service&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you do not agree to these Terms, you may not use the Service.
                 </p>
                 <p>
                   These Terms constitute a legally binding agreement between you and MapMyVisitors. Your use of the Service indicates your acceptance of these Terms.
@@ -78,7 +78,7 @@ export default function TermsOfService() {
                   MapMyVisitors is offered as a one-time payment product. By purchasing the Service, you agree to pay the specified fee of $29 for lifetime access to the basic plan, with an optional $19 upgrade to remove the watermark.
                 </p>
                 <p>
-                  <strong>Lifetime Access and Updates:</strong> "Lifetime access" means access to the Service for as long as it remains operational. "Lifetime updates" refers to all updates, improvements, and bug fixes that we release during the lifecycle of the product itself. This does not guarantee the product will operate indefinitely, but rather that you will receive all updates made available while the Service is active.
+                  <strong>Lifetime Access and Updates:</strong> &quot;Lifetime access&quot; means access to the Service for as long as it remains operational. &quot;Lifetime updates&quot; refers to all updates, improvements, and bug fixes that we release during the lifecycle of the product itself. This does not guarantee the product will operate indefinitely, but rather that you will receive all updates made available while the Service is active.
                 </p>
                 <p>
                   Payments are processed through our third-party payment provider (Gumroad). All sales are final except as outlined in our Refund Policy. We reserve the right to change pricing for new customers, but existing customers will maintain their original pricing terms.
@@ -119,7 +119,7 @@ export default function TermsOfService() {
               <h2 className="text-3xl font-bold mb-4">7. Service Availability and Uptime</h2>
               <div className="space-y-4 text-text-secondary">
                 <p>
-                  While we make every effort to ensure high availability, we do not guarantee uninterrupted access to the Service. The Service is provided "as is" without warranty of any kind.
+                  While we make every effort to ensure high availability, we do not guarantee uninterrupted access to the Service. The Service is provided &quot;as is&quot; without warranty of any kind.
                 </p>
                 <p className="font-semibold">
                   We are not responsible for service interruptions caused by:
@@ -234,7 +234,7 @@ export default function TermsOfService() {
               <h2 className="text-3xl font-bold mb-4">14. Disclaimer of Warranties</h2>
               <div className="space-y-4 text-text-secondary">
                 <p>
-                  THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. WE DISCLAIM ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO:
+                  THE SERVICE IS PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. WE DISCLAIM ALL WARRANTIES, INCLUDING BUT NOT LIMITED TO:
                 </p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Merchantability and fitness for a particular purpose</li>

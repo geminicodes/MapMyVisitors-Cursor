@@ -68,7 +68,7 @@ export default function PrivacyPolicy() {
                   <li>Prevent fraud and ensure security of our platform</li>
                 </ul>
                 <p className="mt-4">
-                  <strong>PostHog Analytics:</strong> We use PostHog to collect anonymous product analytics data. This helps us understand how the product is being used, identify technical issues, monitor performance, and improve functionality. PostHog is a privacy-friendly analytics platform that does not sell data to third parties. You can learn more about PostHog's privacy practices at <a href="https://posthog.com/privacy" target="_blank" rel="noopener noreferrer" className="text-accent-blue hover:underline">https://posthog.com/privacy</a>.
+                  <strong>PostHog Analytics:</strong> We use PostHog to collect anonymous product analytics data. This helps us understand how the product is being used, identify technical issues, monitor performance, and improve functionality. PostHog is a privacy-friendly analytics platform that does not sell data to third parties. You can learn more about PostHog&apos;s privacy practices at <a href="https://posthog.com/privacy" target="_blank" rel="noopener noreferrer" className="text-accent-blue hover:underline">https://posthog.com/privacy</a>.
                 </p>
               </div>
             </section>
@@ -156,7 +156,7 @@ export default function PrivacyPolicy() {
             </section>
 
             <section>
-              <h2 className="text-3xl font-bold mb-4">8. Children's Privacy</h2>
+              <h2 className="text-3xl font-bold mb-4">8. Children&apos;s Privacy</h2>
               <div className="space-y-4 text-text-secondary">
                 <p>
                   MapMyVisitors is not intended for users under the age of 18. We do not knowingly collect personal information from children. If you believe we have collected data from a child, please contact us immediately.

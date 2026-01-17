@@ -3,6 +3,9 @@ import { getCurrentCustomer } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const customer = await getCurrentCustomer();
