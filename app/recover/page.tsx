@@ -42,8 +42,7 @@ export default function RecoverPage() {
       }
 
       setSuccess(true);
-    } catch (error) {
-      console.error('[Recover] Request failed:', error);
+    } catch {
       setError('Network error. Please check your connection.');
       setLoading(false);
     }

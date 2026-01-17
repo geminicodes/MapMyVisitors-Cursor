@@ -28,7 +28,7 @@ async function generateUniqueWidgetId(supabase: ReturnType<typeof createServiceC
       .maybeSingle();
 
     if (error) {
-      console.error('[Signup] Error checking widget ID uniqueness:', error);
+      logger.error('[Signup] Error checking widget ID uniqueness', { message: error.message });
       throw error;
     }
 
