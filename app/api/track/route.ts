@@ -1,35 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
 import { getLocationFromIP } from '@/lib/geoip';
+import { createInMemoryRateLimiter } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const rateLimits = new Map<string, RateLimitEntry>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimits.get(ip);
-
-  if (!entry) {
-    rateLimits.set(ip, { count: 1, resetAt: now + 60 * 1000 });
-    return true;
-  }
-
-  if (now > entry.resetAt) {
-    rateLimits.set(ip, { count: 1, resetAt: now + 60 * 1000 });
-    return true;
-  }
-
-  if (entry.count >= 10) {
-    return false;
-  }
-
-  entry.count++;
-  return true;
-}
+const trackLimiter = createInMemoryRateLimiter({
+  windowMs: 60 * 1000,
+  max: 10,
+  maxEntries: 200_000,
+});
 
 function validateWidgetId(widgetId: string): boolean {
   return /^[a-zA-Z0-9_-]{12}$/.test(widgetId);
@@ -45,60 +24,46 @@ function validateUrl(url: string): boolean {
   }
 }
 
-async function checkMonthlyLimit(supabase: ReturnType<typeof createServiceClient>, userId: string): Promise<{ allowed: boolean; currentCount: number }> {
-  const now = new Date();
-  const month = new Date(now.getFullYear(), now.getMonth(), 1);
+function utcMonthStartISODate(now: Date): string {
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  return monthStart.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+async function checkMonthlyLimit(
+  supabase: ReturnType<typeof createServiceClient>,
+  userId: string
+): Promise<{ allowed: boolean; currentCount: number; month: string }> {
+  const month = utcMonthStartISODate(new Date());
 
   const { data, error } = await supabase
     .from('monthly_pageviews')
     .select('pageview_count')
     .eq('user_id', userId)
-    .eq('month', month.toISOString().split('T')[0])
+    .eq('month', month)
     .maybeSingle();
 
   if (error) {
-    console.error('[Track] Error checking monthly limit:', error);
+    logger.error('[Track] Error checking monthly limit', { message: error.message });
     throw error;
   }
 
   const currentCount = data?.pageview_count || 0;
-  return { allowed: currentCount < 10000, currentCount };
+  return { allowed: currentCount < 10000, currentCount, month };
 }
 
-async function incrementMonthlyPageviews(supabase: ReturnType<typeof createServiceClient>, userId: string): Promise<void> {
-  const now = new Date();
-  const month = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthStr = month.toISOString().split('T')[0];
+async function incrementMonthlyPageviews(
+  supabase: ReturnType<typeof createServiceClient>,
+  userId: string,
+  month: string
+): Promise<void> {
+  // Atomic increment via SECURITY DEFINER function in migrations.
+  const { error } = await supabase.rpc('increment_monthly_pageviews', {
+    p_user_id: userId,
+    p_month: month,
+  });
 
-  const { data: existing } = await supabase
-    .from('monthly_pageviews')
-    .select('pageview_count')
-    .eq('user_id', userId)
-    .eq('month', monthStr)
-    .maybeSingle();
-
-  if (existing) {
-    const { error } = await supabase
-      .from('monthly_pageviews')
-      .update({ pageview_count: existing.pageview_count + 1 })
-      .eq('user_id', userId)
-      .eq('month', monthStr);
-
-    if (error) {
-      console.error('[Track] Error incrementing pageviews:', error);
-    }
-  } else {
-    const { error } = await supabase
-      .from('monthly_pageviews')
-      .insert({
-        user_id: userId,
-        month: monthStr,
-        pageview_count: 1,
-      });
-
-    if (error && error.code !== '23505') {
-      console.error('[Track] Error creating pageview record:', error);
-    }
+  if (error) {
+    logger.error('[Track] Error incrementing monthly pageviews', { message: error.message });
   }
 }
 
@@ -125,7 +90,7 @@ export async function POST(request: NextRequest) {
                request.headers.get('x-real-ip') ||
                '127.0.0.1';
 
-    if (!checkRateLimit(ip)) {
+    if (!trackLimiter.allow(ip.trim())) {
       return NextResponse.json(
         { success: false, error: 'Too many requests' },
         { status: 429, headers }
@@ -158,7 +123,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (userError) {
-      console.error('[Track] Database error:', userError);
+      logger.error('[Track] Database error', { message: userError.message });
       return NextResponse.json(
         { success: false, error: 'Database error' },
         { status: 500, headers }
@@ -179,7 +144,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { allowed, currentCount } = await checkMonthlyLimit(supabase, user.id);
+    const { allowed, month } = await checkMonthlyLimit(supabase, user.id);
 
     if (!allowed) {
       return NextResponse.json(
@@ -206,21 +171,23 @@ export async function POST(request: NextRequest) {
       });
 
     if (insertError) {
-      console.error('[Track] Error inserting visitor:', insertError);
+      logger.error('[Track] Error inserting visitor', { message: insertError.message });
       return NextResponse.json(
         { success: false, error: 'Failed to track visitor' },
         { status: 500, headers }
       );
     }
 
-    await incrementMonthlyPageviews(supabase, user.id);
+    await incrementMonthlyPageviews(supabase, user.id, month);
 
     return NextResponse.json(
       { success: true, message: 'Tracked' },
       { headers }
     );
   } catch (error) {
-    console.error('[Track] Error:', error);
+    logger.error('[Track] Error', {
+      message: error instanceof Error ? error.message : 'unknown_error',
+    });
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500, headers }

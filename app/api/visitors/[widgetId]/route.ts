@@ -1,36 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
+import { createInMemoryRateLimiter } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const rateLimits = new Map<string, RateLimitEntry>();
-
-function checkRateLimit(widgetId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimits.get(widgetId);
-
-  if (!entry) {
-    rateLimits.set(widgetId, { count: 1, resetAt: now + 60 * 1000 });
-    return true;
-  }
-
-  if (now > entry.resetAt) {
-    rateLimits.set(widgetId, { count: 1, resetAt: now + 60 * 1000 });
-    return true;
-  }
-
-  if (entry.count >= 100) {
-    return false;
-  }
-
-  entry.count++;
-  return true;
-}
+const visitorsLimiter = createInMemoryRateLimiter({
+  windowMs: 60 * 1000,
+  max: 100,
+  maxEntries: 100_000,
+});
 
 function validateWidgetId(widgetId: string): boolean {
   return /^[a-zA-Z0-9_-]{12}$/.test(widgetId);
@@ -67,7 +46,7 @@ export async function GET(
       );
     }
 
-    if (!checkRateLimit(widgetId)) {
+    if (!visitorsLimiter.allow(widgetId)) {
       return NextResponse.json(
         { success: false, error: 'Too many requests' },
         { status: 429, headers }
@@ -76,18 +55,19 @@ export async function GET(
 
     const searchParams = request.nextUrl.searchParams;
     const limitParam = searchParams.get('limit');
-    const limit = Math.min(parseInt(limitParam || '50', 10), 100);
+    const parsedLimit = Number.parseInt(limitParam || '50', 10);
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 50;
 
     const supabase = createServiceClient();
 
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('id, paid')
+      .select('id, paid, watermark_removed')
       .eq('widget_id', widgetId)
       .maybeSingle();
 
     if (userError) {
-      console.error('[Visitors] Database error:', userError);
+      logger.error('[Visitors] Database error', { message: userError.message });
       return NextResponse.json(
         { success: false, error: 'Database error' },
         { status: 500, headers }
@@ -116,7 +96,7 @@ export async function GET(
       .limit(limit);
 
     if (visitorsError) {
-      console.error('[Visitors] Error fetching visitors:', visitorsError);
+      logger.error('[Visitors] Error fetching visitors', { message: visitorsError.message });
       return NextResponse.json(
         { success: false, error: 'Failed to fetch visitors' },
         { status: 500, headers }
@@ -127,40 +107,64 @@ export async function GET(
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    const formattedVisitors: VisitorData[] = (visitors || []).map((v) => {
-      const createdAt = new Date(v.created_at);
-      return {
-        id: v.id,
-        lat: parseFloat(v.latitude.toString()),
-        lng: parseFloat(v.longitude.toString()),
-        city: v.city,
-        country: v.country,
-        timestamp: v.created_at,
-        isRecent: createdAt > fiveMinutesAgo,
-      };
-    });
+    const formattedVisitors: VisitorData[] = (visitors || [])
+      .map((v) => {
+        const lat = typeof v.latitude === 'number' ? v.latitude : Number(v.latitude);
+        const lng = typeof v.longitude === 'number' ? v.longitude : Number(v.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
-    const totalToday = (visitors || []).filter(
-      (v) => new Date(v.created_at) >= todayStart
-    ).length;
+        const createdAt = new Date(v.created_at);
+        return {
+          id: v.id,
+          lat,
+          lng,
+          city: v.city,
+          country: v.country,
+          timestamp: v.created_at,
+          isRecent: createdAt > fiveMinutesAgo,
+        };
+      })
+      .filter((v): v is VisitorData => v !== null);
 
-    const activeNow = (visitors || []).filter(
-      (v) => new Date(v.created_at) > fiveMinutesAgo
-    ).length;
+    // Accurate counts should not depend on the visual limit.
+    const [todayRes, activeRes] = await Promise.all([
+      supabase
+        .from('visitors')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', todayStart.toISOString()),
+      supabase
+        .from('visitors')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gt('created_at', fiveMinutesAgo.toISOString()),
+    ]);
 
+    if (todayRes.error) {
+      logger.error('[Visitors] Failed to count totalToday', { message: todayRes.error.message });
+    }
+    if (activeRes.error) {
+      logger.error('[Visitors] Failed to count activeNow', { message: activeRes.error.message });
+    }
+
+    const showWatermark = !(user.watermark_removed === true);
+
+    // Response shape is consumed by `public/widget-src.js` directly.
     return NextResponse.json(
       {
         success: true,
-        data: {
-          visitors: formattedVisitors,
-          totalToday,
-          activeNow,
-        },
+        paid: true,
+        showWatermark,
+        visitors: formattedVisitors,
+        totalToday: todayRes.count ?? 0,
+        activeNow: activeRes.count ?? 0,
       },
       { headers }
     );
   } catch (error) {
-    console.error('[Visitors] Error:', error);
+    logger.error('[Visitors] Error', {
+      message: error instanceof Error ? error.message : 'unknown_error',
+    });
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500, headers }

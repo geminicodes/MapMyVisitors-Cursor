@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentCustomer } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -21,7 +22,7 @@ export async function GET() {
       .maybeSingle();
 
     if (error || !customerData) {
-      console.error('Database error:', error);
+      logger.error('[Customer] Database error', { message: error?.message ?? 'unknown_error' });
       return NextResponse.json(
         { message: 'Customer not found' },
         { status: 404 }
@@ -41,7 +42,9 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('Customer fetch error:', error);
+    logger.error('[Customer] Error', {
+      message: error instanceof Error ? error.message : 'unknown_error',
+    });
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

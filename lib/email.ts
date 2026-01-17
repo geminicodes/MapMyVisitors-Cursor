@@ -1,6 +1,14 @@
+import 'server-only';
 import { Resend } from 'resend';
+import { logger } from '@/lib/logger';
 
-const resend = new Resend(process.env.RESEND_API_KEY || 'dummy-key-for-build');
+function getResendClient(): Resend | null {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || apiKey.trim().length === 0) {
+    return null;
+  }
+  return new Resend(apiKey);
+}
 
 function getMagicLinkEmailTemplate(magicLink: string): string {
   return `
@@ -50,6 +58,13 @@ export async function sendMagicLinkEmail(
   magicLink: string
 ): Promise<{ success: boolean; error?: any }> {
   try {
+    const resend = getResendClient();
+    if (!resend) {
+      // Avoid throwing at import-time/build-time; fail gracefully at runtime.
+      logger.error('[Email] RESEND_API_KEY missing; cannot send magic link email');
+      return { success: false, error: 'RESEND_API_KEY missing' };
+    }
+
     await resend.emails.send({
       from: 'MapMyVisitors <onboarding@resend.dev>',
       to: email,
@@ -59,7 +74,9 @@ export async function sendMagicLinkEmail(
 
     return { success: true };
   } catch (error) {
-    console.error('[Email] Send failed:', error);
+    logger.error('[Email] Send failed', {
+      message: error instanceof Error ? error.message : 'unknown_error',
+    });
     return { success: false, error };
   }
 }

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createToken, setAuthCookie } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase';
 import { nanoid } from 'nanoid';
+import { createInMemoryRateLimiter } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
-const GUMROAD_API_TOKEN = process.env.GUMROAD_API_TOKEN;
 const GUMROAD_PRODUCT_ID = process.env.GUMROAD_PRODUCT_ID;
 
 interface GumroadResponse {
@@ -14,6 +15,12 @@ interface GumroadResponse {
   };
   message?: string;
 }
+
+const verifyLicenseLimiter = createInMemoryRateLimiter({
+  windowMs: 60 * 1000,
+  max: 10,
+  maxEntries: 200_000,
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +33,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!GUMROAD_API_TOKEN || !GUMROAD_PRODUCT_ID) {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0] ||
+               request.headers.get('x-real-ip') ||
+               'unknown';
+
+    if (!verifyLicenseLimiter.allow(ip.trim())) {
+      return NextResponse.json(
+        { message: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
+    if (!GUMROAD_PRODUCT_ID) {
       return NextResponse.json(
         { message: 'Server configuration error. Please contact support.' },
         { status: 500 }
@@ -35,22 +53,28 @@ export async function POST(request: NextRequest) {
 
     const normalizedEmail = String(email).trim().toLowerCase();
     const normalizedLicenseKey = String(licenseKey).trim();
+    if (normalizedEmail.length > 254 || normalizedLicenseKey.length > 200) {
+      return NextResponse.json({ message: 'Invalid input' }, { status: 400 });
+    }
     
     const formData = new URLSearchParams();
     formData.append('product_id', GUMROAD_PRODUCT_ID);
     formData.append('license_key', normalizedLicenseKey);
     formData.append('increment_uses_count', 'false');
 
-    const gumroadResponse = await fetch(
-      'https://api.gumroad.com/v2/licenses/verify',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString(),
-      }
-    );
+    const gumroadResponse = await fetch('https://api.gumroad.com/v2/licenses/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!gumroadResponse.ok) {
+      logger.error('[Verify License] Gumroad API error', { status: gumroadResponse.status });
+      return NextResponse.json({ message: 'License verification failed' }, { status: 502 });
+    }
 
     const data: GumroadResponse = await gumroadResponse.json();
 
@@ -91,7 +115,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (fetchError) {
-      console.error('Database error:', fetchError);
+      logger.error('[Verify License] Database error (customers lookup)', { message: fetchError.message });
       return NextResponse.json(
         { message: 'Database error. Please try again.' },
         { status: 500 }
@@ -118,7 +142,7 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (userFetchError) {
-        console.error('Database error (users lookup):', userFetchError);
+        logger.error('[Verify License] Database error (users lookup)', { message: userFetchError.message });
         return NextResponse.json(
           { message: 'Database error. Please try again.' },
           { status: 500 }
@@ -139,7 +163,7 @@ export async function POST(request: NextRequest) {
           .eq('id', userId);
 
         if (userUpdateError) {
-          console.error('Database error (users update):', userUpdateError);
+          logger.error('[Verify License] Database error (users update)', { message: userUpdateError.message });
           return NextResponse.json(
             { message: 'Database error. Please try again.' },
             { status: 500 }
@@ -159,7 +183,7 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (userInsertError) {
-          console.error('Database insert error (users):', userInsertError);
+          logger.error('[Verify License] Database insert error (users)', { message: userInsertError.message });
           return NextResponse.json(
             { message: 'Database error. Please try again.' },
             { status: 500 }
@@ -187,7 +211,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (insertError) {
-        console.error('Database insert error:', insertError);
+        logger.error('[Verify License] Database insert error (customers)', { message: insertError.message });
         return NextResponse.json(
           { message: 'Failed to create customer record. Please try again.' },
           { status: 500 }
@@ -216,7 +240,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('License verification error:', error);
+    logger.error('[Verify License] Error', {
+      message: error instanceof Error ? error.message : 'unknown_error',
+    });
     return NextResponse.json(
       { message: 'Verification failed. Please try again.' },
       { status: 500 }

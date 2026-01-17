@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger';
+
 interface LocationData {
   country: string;
   countryCode: string;
@@ -49,7 +51,10 @@ export async function getLocationFromIP(ip: string): Promise<LocationData> {
 
     return location;
   } catch (error) {
-    console.error('[GeoIP] Lookup failed:', { ip, error });
+    logger.error('[GeoIP] Lookup failed', {
+      ip,
+      message: error instanceof Error ? error.message : 'unknown_error',
+    });
     return {
       country: 'Unknown',
       countryCode: 'XX',

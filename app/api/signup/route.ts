@@ -1,35 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { createServiceClient } from '@/lib/supabase';
+import { createInMemoryRateLimiter } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const rateLimits = new Map<string, RateLimitEntry>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimits.get(ip);
-
-  if (!entry) {
-    rateLimits.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return true;
-  }
-
-  if (now > entry.resetAt) {
-    rateLimits.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return true;
-  }
-
-  if (entry.count >= 5) {
-    return false;
-  }
-
-  entry.count++;
-  return true;
-}
+const signupLimiter = createInMemoryRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  maxEntries: 50_000,
+});
 
 function validateEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -67,7 +46,7 @@ export async function POST(request: NextRequest) {
                request.headers.get('x-real-ip') ||
                'unknown';
 
-    if (!checkRateLimit(ip)) {
+    if (!signupLimiter.allow(ip.trim())) {
       return NextResponse.json(
         { success: false, error: 'Too many signup attempts. Please try again later.' },
         { status: 429 }
@@ -121,23 +100,29 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error('[Signup] Failed to create user:', insertError);
+      logger.error('[Signup] Failed to create user', { message: insertError.message });
       return NextResponse.json(
         { success: false, error: 'Failed to create user' },
         { status: 500 }
       );
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_LEMONSQUEEZY_CHECKOUT_URL || 'https://example.com/checkout';
+    const baseUrl = process.env.NEXT_PUBLIC_LEMONSQUEEZY_CHECKOUT_URL;
+    if (!baseUrl) {
+      logger.error('[Signup] Missing NEXT_PUBLIC_LEMONSQUEEZY_CHECKOUT_URL');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error. Please contact support.' },
+        { status: 500 }
+      );
+    }
     const checkoutUrl = new URL(baseUrl);
     checkoutUrl.searchParams.set('checkout[email]', normalizedEmail);
     checkoutUrl.searchParams.set('checkout[custom][user_id]', newUser.id);
     checkoutUrl.searchParams.set('checkout[custom][widget_id]', widgetId);
 
-    console.log('[Signup] User created:', {
+    logger.info('[Signup] User created', {
       userId: newUser.id,
       widgetId,
-      email: normalizedEmail,
     });
 
     return NextResponse.json({
@@ -149,7 +134,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[Signup] Error:', error);
+    logger.error('[Signup] Error', {
+      message: error instanceof Error ? error.message : 'unknown_error',
+    });
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
