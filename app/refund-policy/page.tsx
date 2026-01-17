@@ -124,7 +124,7 @@ export default function RefundPolicy() {
                 <div className="space-y-3 mt-4">
                   <div className="flex gap-3">
                     <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                    <p><strong>Change of Mind:</strong> Simple dissatisfaction or buyer's remorse after using the Service for an extended period (7+ days of active use)</p>
+                    <p><strong>Change of Mind:</strong> Simple dissatisfaction or buyer&apos;s remorse after using the Service for an extended period (7+ days of active use)</p>
                   </div>
                   <div className="flex gap-3">
                     <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -136,7 +136,7 @@ export default function RefundPolicy() {
                   </div>
                   <div className="flex gap-3">
                     <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                    <p><strong>Technical Incompatibility:</strong> Issues caused by your website's platform, hosting environment, conflicting scripts, or custom code modifications. You are responsible for ensuring compatibility before purchase.</p>
+                    <p><strong>Technical Incompatibility:</strong> Issues caused by your website&apos;s platform, hosting environment, conflicting scripts, or custom code modifications. You are responsible for ensuring compatibility before purchase.</p>
                   </div>
                   <div className="flex gap-3">
                     <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -185,7 +185,7 @@ export default function RefundPolicy() {
 
                 <ol className="list-decimal list-inside space-y-3 ml-4">
                   <li className="pl-2">
-                    <strong>Contact Support:</strong> Email support@mapmyvisitors.com with the subject line "Refund Request - [Your Email]"
+                    <strong>Contact Support:</strong> Email support@mapmyvisitors.com with the subject line &quot;Refund Request - [Your Email]&quot;
                   </li>
                   <li className="pl-2">
                     <strong>Provide Information:</strong> Include your purchase date, order number (from Gumroad), detailed description of the issue, screenshots or error messages, and evidence of troubleshooting attempts

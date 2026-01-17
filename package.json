@@ -76,5 +76,8 @@
   },
   "devDependencies": {
     "esbuild": "^0.27.2"
+  },
+  "overrides": {
+    "glob": "10.5.0"
   }
 }

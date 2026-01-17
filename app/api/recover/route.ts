@@ -2,35 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
 import { generateMagicToken } from '@/lib/token';
 import { sendMagicLinkEmail } from '@/lib/email';
+import { createInMemoryRateLimiter } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const rateLimits = new Map<string, RateLimitEntry>();
-
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimits.get(ip);
-
-  if (!entry) {
-    rateLimits.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return true;
-  }
-
-  if (now > entry.resetAt) {
-    rateLimits.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 });
-    return true;
-  }
-
-  if (entry.count >= 3) {
-    return false;
-  }
-
-  entry.count++;
-  return true;
-}
+const recoveryLimiter = createInMemoryRateLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  maxEntries: 50_000,
+});
 
 function validateEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,7 +22,7 @@ export async function POST(request: NextRequest) {
                request.headers.get('x-real-ip') ||
                'unknown';
 
-    if (!checkRateLimit(ip)) {
+    if (!recoveryLimiter.allow(ip.trim())) {
       return NextResponse.json(
         { success: false, error: 'Too many attempts. Please try again in an hour.' },
         { status: 429 }
@@ -78,29 +57,27 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (dbError) {
-      console.error('[Recovery] Database error:', dbError);
+      logger.error('[Recovery] Database error', { message: dbError.message });
     }
 
-    console.log('[Recovery] Request received', {
-      email: normalizedEmail,
-      userFound: !!user,
-      timestamp: new Date().toISOString(),
-    });
-
     if (user && user.paid) {
-      const token = generateMagicToken(user.id, user.widget_id);
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-      const magicLink = `${appUrl}/dashboard?token=${token}`;
-
-      const { success } = await sendMagicLinkEmail(normalizedEmail, magicLink);
-
-      if (success) {
-        console.log('[Recovery] Email sent successfully', {
-          email: normalizedEmail,
-          userId: user.id,
+      // Best-effort: never leak whether the account exists, and never fail the endpoint.
+      try {
+        const token = generateMagicToken(user.id, user.widget_id);
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+        if (!appUrl) {
+          logger.error('[Recovery] Missing NEXT_PUBLIC_APP_URL; cannot construct magic link');
+        } else {
+          const magicLink = `${appUrl}/dashboard?token=${token}`;
+          const { success } = await sendMagicLinkEmail(normalizedEmail, magicLink);
+          if (!success) {
+            logger.error('[Recovery] Email send failed');
+          }
+        }
+      } catch (error) {
+        logger.error('[Recovery] Failed to generate/send magic link', {
+          message: error instanceof Error ? error.message : 'unknown_error',
         });
-      } else {
-        console.error('[Recovery] Email send failed', { email: normalizedEmail });
       }
     }
 
@@ -109,10 +86,13 @@ export async function POST(request: NextRequest) {
       message: 'If an account exists with this email, you will receive a magic link shortly.',
     });
   } catch (error) {
-    console.error('[Recovery] Error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    logger.error('[Recovery] Error', {
+      message: error instanceof Error ? error.message : 'unknown_error',
+    });
+    // Preserve privacy semantics: don't fail closed in a way that reveals internal state.
+    return NextResponse.json({
+      success: true,
+      message: 'If an account exists with this email, you will receive a magic link shortly.',
+    });
   }
 }

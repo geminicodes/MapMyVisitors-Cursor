@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Script from "next/script"
 import { Loader2 } from "lucide-react"
 
@@ -17,13 +17,53 @@ interface VisitorPoint {
   avatarUrl?: string
 }
 
+type GlobePoint = VisitorPoint & { idx: number; baseAltitude: number }
+type GlobeHtmlPoint = VisitorPoint & { idx: number; __element?: HTMLElement }
+
+type GlobeRenderer = { domElement: HTMLElement; dispose?: () => void }
+type GlobeCamera = { position: { x: number; y: number; z: number } }
+type GlobeControls = { autoRotate?: boolean; autoRotateSpeed?: number }
+
+type GlobeInstance = {
+  (el: HTMLElement): unknown
+  width(n: number): GlobeInstance
+  height(n: number): GlobeInstance
+  globeImageUrl(url: string): GlobeInstance
+  bumpImageUrl(url: string): GlobeInstance
+  backgroundImageUrl(url: string): GlobeInstance
+  atmosphereColor(color: string): GlobeInstance
+  atmosphereAltitude(n: number): GlobeInstance
+  showAtmosphere(show: boolean): GlobeInstance
+  pointColor(fn: (p: GlobePoint) => string): GlobeInstance
+  pointAltitude(fn: (p: GlobePoint) => number): GlobeInstance
+  pointRadius(fn: (p: GlobePoint) => number): GlobeInstance
+  pointLabel(fn: (p: GlobePoint) => string): GlobeInstance
+  htmlElementsData(): unknown
+  htmlElementsData(data: GlobeHtmlPoint[]): GlobeInstance
+  htmlElement(fn: (d: GlobeHtmlPoint) => HTMLElement): GlobeInstance
+  htmlLat(fn: (d: GlobeHtmlPoint) => number): GlobeInstance
+  htmlLng(fn: (d: GlobeHtmlPoint) => number): GlobeInstance
+  htmlAltitude(fn: (d: GlobeHtmlPoint) => number): GlobeInstance
+  pointsData(): unknown
+  pointsData(data: GlobePoint[]): GlobeInstance
+  pointOfView(view: { lat: number; lng: number; altitude: number }, ms?: number): GlobeInstance
+  controls(): GlobeControls | null
+  camera(): GlobeCamera | null
+  renderer(): GlobeRenderer
+}
+
+declare global {
+  interface Window {
+    Globe?: () => GlobeInstance
+  }
+}
+
 export default function InteractiveGlobe() {
   const containerRef = useRef<HTMLDivElement>(null)
   const globeMountRef = useRef<HTMLDivElement>(null)
-  const globeRef = useRef<any>(null)
+  const globeRef = useRef<GlobeInstance | null>(null)
   const pulseIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const interactionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const scriptLoadedRef = useRef(false)
   const mountedRef = useRef(true)
 
   const [isReady, setIsReady] = useState(false)
@@ -32,7 +72,7 @@ export default function InteractiveGlobe() {
   const [scriptReady, setScriptReady] = useState(false)
 
   // Demo visitor data - hardcoded for demo
-  const visitorPoints: VisitorPoint[] = [
+  const visitorPoints: VisitorPoint[] = useMemo(() => [
     // Recent visitors (pulsing blue)
     {
       lat: 37.7749,
@@ -254,7 +294,7 @@ export default function InteractiveGlobe() {
       isRecent: false,
       avatarUrl: "https://i.pravatar.cc/150?img=20",
     },
-  ]
+  ], [])
 
   // Check mobile
   useEffect(() => {
@@ -276,34 +316,37 @@ export default function InteractiveGlobe() {
       return
     }
 
+    const globeMountEl = globeMountRef.current
+    let onUserInteraction: EventListener | null = null
+
     const initializeGlobe = async () => {
-      if (!globeMountRef.current || !mountedRef.current) return
+      if (!globeMountEl || !mountedRef.current) return
 
       try {
-        if (!(window as any).Globe) {
+        if (!window.Globe) {
           throw new Error("Globe not found on window")
         }
 
-        const Globe = (window as any).Globe
+        const Globe = window.Globe
         const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
         const globe = Globe()
 
         globe
-          .width(globeMountRef.current.clientWidth)
-          .height(globeMountRef.current.clientHeight)
+          .width(globeMountEl.clientWidth)
+          .height(globeMountEl.clientHeight)
           .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg")
           .bumpImageUrl("https://unpkg.com/three-globe/example/img/earth-topology.png")
           .backgroundImageUrl("https://unpkg.com/three-globe/example/img/night-sky.png")
           .atmosphereColor("#3b82f6")
           .atmosphereAltitude(0.15)
           .showAtmosphere(true)
-          .pointColor((p: any) => p.color)
-          .pointAltitude((p: any) => p.altitude)
-          .pointRadius((p: any) => p.radius)
-          .pointLabel((p: any) => `${p.city}, ${p.country}`)
-          .htmlElementsData(visitorPoints.map((point, idx) => ({ ...point, idx })))
-          .htmlElement((d: any) => {
+          .pointColor((p) => p.color)
+          .pointAltitude((p) => p.altitude)
+          .pointRadius((p) => p.radius)
+          .pointLabel((p) => `${p.city}, ${p.country}`)
+          .htmlElementsData(visitorPoints.map((point, idx) => ({ ...point, idx } satisfies GlobeHtmlPoint)))
+          .htmlElement((d) => {
             const el = document.createElement('div')
             el.style.cssText = `
               width: 40px;
@@ -342,11 +385,11 @@ export default function InteractiveGlobe() {
 
             return el
           })
-          .htmlLat((d: any) => d.lat)
-          .htmlLng((d: any) => d.lng)
-          .htmlAltitude((d: any) => d.altitude)
+          .htmlLat((d) => d.lat)
+          .htmlLng((d) => d.lng)
+          .htmlAltitude((d) => d.altitude)
 
-        globe(globeMountRef.current)
+        globe(globeMountEl)
 
         globeRef.current = globe
 
@@ -354,7 +397,7 @@ export default function InteractiveGlobe() {
         globe.pointOfView({ lat: 20, lng: -30, altitude: 2.5 }, 0)
 
         // Configure points data
-        const pointsData = visitorPoints.map((point, idx) => ({
+        const pointsData: GlobePoint[] = visitorPoints.map((point, idx) => ({
           ...point,
           idx,
           baseAltitude: point.altitude,
@@ -363,6 +406,26 @@ export default function InteractiveGlobe() {
         globe.pointsData(pointsData)
 
         // Setup controls
+        const interactionHandler: EventListener = () => {
+          if (prefersReducedMotion || !mountedRef.current) return
+          const controls = globe.controls()
+          if (!controls) return
+          controls.autoRotate = false
+
+          if (interactionTimeoutRef.current) {
+            clearTimeout(interactionTimeoutRef.current)
+          }
+
+          interactionTimeoutRef.current = setTimeout(() => {
+            if (!mountedRef.current) return
+            const ctrl = globe.controls()
+            if (ctrl) {
+              ctrl.autoRotate = true
+            }
+          }, 3000)
+        }
+        onUserInteraction = interactionHandler
+
         setTimeout(() => {
           if (!mountedRef.current) return
 
@@ -375,33 +438,12 @@ export default function InteractiveGlobe() {
                 controls.autoRotateSpeed = 0.5
               }
 
-              // Resume auto-rotate after user interaction stops
-              const onUserInteraction = () => {
-                if (prefersReducedMotion || !mountedRef.current) return
-                controls.autoRotate = false
-
-                if (interactionTimeoutRef.current) {
-                  clearTimeout(interactionTimeoutRef.current)
-                }
-
-                interactionTimeoutRef.current = setTimeout(() => {
-                  if (!mountedRef.current) return
-                  const ctrl = globe.controls()
-                  if (ctrl) {
-                    ctrl.autoRotate = true
-                  }
-                }, 3000)
-              }
-
-              const globeMount = globeMountRef.current
-              if (globeMount) {
-                globeMount.addEventListener("mousedown", onUserInteraction)
-                globeMount.addEventListener("touchstart", onUserInteraction)
-                globeMount.addEventListener("wheel", onUserInteraction)
-              }
+              globeMountEl.addEventListener("mousedown", interactionHandler)
+              globeMountEl.addEventListener("touchstart", interactionHandler)
+              globeMountEl.addEventListener("wheel", interactionHandler)
             }
-          } catch (err) {
-            console.warn("Error accessing controls:", err)
+          } catch {
+            // Ignore control init errors.
           }
         }, 100)
 
@@ -427,7 +469,7 @@ export default function InteractiveGlobe() {
             const dotProduct = pointX * camX + pointY * camY + pointZ * camZ
 
             return dotProduct > 0.15
-          } catch (err) {
+          } catch {
             return true
           }
         }
@@ -443,18 +485,18 @@ export default function InteractiveGlobe() {
             const currentHtmlData = globe.htmlElementsData()
 
             if (currentPointsData && Array.isArray(currentPointsData)) {
-              currentPointsData.forEach((point: any) => {
+              ;(currentPointsData as GlobePoint[]).forEach((point) => {
                 if (point.isRecent) {
                   const pulse = Math.sin(pulseTime * 3 + point.idx) * 0.04
                   point.altitude = (point.baseAltitude || point.altitude) + pulse
                 }
               })
 
-              globe.pointAltitude((p: any) => p.altitude)
+              globe.pointAltitude((p) => p.altitude)
             }
 
             if (currentHtmlData && Array.isArray(currentHtmlData)) {
-              currentHtmlData.forEach((point: any) => {
+              ;(currentHtmlData as GlobeHtmlPoint[]).forEach((point) => {
                 if (point.isRecent) {
                   const pulse = Math.sin(pulseTime * 3 + point.idx) * 0.04
                   point.altitude = (point.baseAltitude || point.altitude) + pulse
@@ -467,7 +509,7 @@ export default function InteractiveGlobe() {
                 }
               })
 
-              globe.htmlAltitude((d: any) => d.altitude)
+              globe.htmlAltitude((d) => d.altitude)
             }
           }, 16)
         }
@@ -483,7 +525,7 @@ export default function InteractiveGlobe() {
     }
 
     // Initialize when script is ready
-    if ((window as any).Globe) {
+    if (window.Globe) {
       initializeGlobe()
     } else {
       setError("Globe library not loaded")
@@ -503,6 +545,17 @@ export default function InteractiveGlobe() {
         interactionTimeoutRef.current = null
       }
 
+      // Remove interaction listeners (best-effort).
+      try {
+        if (onUserInteraction) {
+          globeMountEl.removeEventListener("mousedown", onUserInteraction)
+          globeMountEl.removeEventListener("touchstart", onUserInteraction)
+          globeMountEl.removeEventListener("wheel", onUserInteraction)
+        }
+      } catch {
+        // Ignore.
+      }
+
       // Cleanup globe instance
       if (globeRef.current) {
         try {
@@ -518,24 +571,23 @@ export default function InteractiveGlobe() {
           }
 
           globeRef.current = null
-        } catch (err) {
-          console.warn("Error cleaning up globe:", err)
+        } catch {
+          // Ignore.
         }
       }
 
       // Clear the globe mount point
-      const globeMount = globeMountRef.current
-      if (globeMount) {
+      if (globeMountEl) {
         try {
-          while (globeMount.firstChild) {
-            globeMount.removeChild(globeMount.firstChild)
+          while (globeMountEl.firstChild) {
+            globeMountEl.removeChild(globeMountEl.firstChild)
           }
-        } catch (err) {
-          console.warn("Error clearing globe mount:", err)
+        } catch {
+          // Ignore.
         }
       }
     }
-  }, [scriptReady])
+  }, [scriptReady, visitorPoints])
 
   return (
     <>

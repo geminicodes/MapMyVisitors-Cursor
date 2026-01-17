@@ -1,34 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase';
+import { createInMemoryRateLimiter } from '@/lib/rate-limit';
+import { logger } from '@/lib/logger';
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
-const rateLimits = new Map<string, RateLimitEntry>();
-
-function checkRateLimit(widgetId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimits.get(widgetId);
-
-  if (!entry) {
-    rateLimits.set(widgetId, { count: 1, resetAt: now + 60 * 1000 });
-    return true;
-  }
-
-  if (now > entry.resetAt) {
-    rateLimits.set(widgetId, { count: 1, resetAt: now + 60 * 1000 });
-    return true;
-  }
-
-  if (entry.count >= 60) {
-    return false;
-  }
-
-  entry.count++;
-  return true;
-}
+const dashboardLimiter = createInMemoryRateLimiter({
+  windowMs: 60 * 1000,
+  max: 60,
+  maxEntries: 100_000,
+});
 
 function validateWidgetId(widgetId: string): boolean {
   return /^[a-zA-Z0-9_-]{12}$/.test(widgetId);
@@ -53,7 +35,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!checkRateLimit(widgetId)) {
+    if (!dashboardLimiter.allow(widgetId)) {
       return NextResponse.json(
         { success: false, error: 'Too many requests' },
         { status: 429 }
@@ -69,7 +51,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      console.error('[Dashboard] Database error:', error);
+      logger.error('[Dashboard] Database error', { message: error.message });
       return NextResponse.json(
         { success: false, error: 'Database error' },
         { status: 500 }
@@ -84,14 +66,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (!user.paid) {
-      console.log('[Dashboard] Access attempt for unpaid user:', { widgetId });
       return NextResponse.json(
         { success: false, error: 'Payment required' },
         { status: 402 }
       );
     }
-
-    console.log('[Dashboard] Verification successful:', { widgetId, email: user.email });
 
     return NextResponse.json({
       success: true,
@@ -103,7 +82,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[Dashboard] Error:', error);
+    logger.error('[Dashboard] Error', {
+      message: error instanceof Error ? error.message : 'unknown_error',
+    });
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

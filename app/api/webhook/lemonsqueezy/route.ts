@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 /**
  * Lemon Squeezy webhook handler (mission-critical payment code).
@@ -104,7 +105,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     rawBody = await request.text();
   } catch (error) {
-    console.error('[Webhook] ❌ Failed to read raw body', {
+    logger.error('[Webhook] Failed to read raw body', {
       timestamp,
       action: 'MANUAL_FIX',
       error: error instanceof Error ? error.message : 'unknown_error',
@@ -115,7 +116,7 @@ export async function POST(request: Request): Promise<Response> {
   // 2) Extract signature header.
   const signatureHeader = request.headers.get('x-signature');
   if (!signatureHeader) {
-    console.error('[Webhook] 🚨 Missing signature header', { timestamp, hasSignature: false });
+    logger.error('[Webhook] Missing signature header', { timestamp, hasSignature: false });
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -123,7 +124,7 @@ export async function POST(request: Request): Promise<Response> {
   const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
   if (!secret) {
     // Fail closed: we cannot verify authenticity.
-    console.error('[Webhook] 🚨 Webhook secret not configured', {
+    logger.error('[Webhook] Webhook secret not configured', {
       timestamp,
       hasSignature: true,
       action: 'MANUAL_FIX',
@@ -136,7 +137,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const isValidSignature = safeTimingEqualHex(providedSignature, computedSignature);
   if (!isValidSignature) {
-    console.error('[Webhook] 🚨 Invalid signature', { timestamp, hasSignature: true });
+    logger.error('[Webhook] Invalid signature', { timestamp, hasSignature: true });
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -146,7 +147,7 @@ export async function POST(request: Request): Promise<Response> {
     const parsed: unknown = JSON.parse(rawBody);
     payload = isRecord(parsed) ? (parsed as LemonSqueezyWebhook) : {};
   } catch (error) {
-    console.error('[Webhook] ❌ Invalid JSON payload', {
+    logger.error('[Webhook] Invalid JSON payload', {
       timestamp,
       action: 'MANUAL_FIX',
       error: error instanceof Error ? error.message : 'unknown_error',
@@ -157,7 +158,7 @@ export async function POST(request: Request): Promise<Response> {
   // 5) Ignore non-order_created events.
   const eventName = asNonEmptyString(payload.meta?.event_name);
   if (eventName !== 'order_created') {
-    console.log('[Webhook] ℹ️ Ignored event', { timestamp, eventName: eventName ?? 'unknown' });
+    logger.info('[Webhook] Ignored event', { timestamp, eventName: eventName ?? 'unknown' });
     return new Response('OK', { status: 200 });
   }
 
@@ -173,7 +174,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // 7) Validate required fields (but still return 200 to avoid retries).
   if (!userId || !widgetId || !orderId || !status) {
-    console.error('[Webhook] ❌ Missing required fields', {
+    logger.error('[Webhook] Missing required fields', {
       timestamp,
       action: 'MANUAL_FIX',
       hasUserId: !!userId,
@@ -186,7 +187,7 @@ export async function POST(request: Request): Promise<Response> {
 
   // 8) Ignore statuses other than paid.
   if (status !== 'paid') {
-    console.log('[Webhook] ℹ️ Ignored non-paid order', {
+    logger.info('[Webhook] Ignored non-paid order', {
       timestamp,
       userId,
       widgetId,
@@ -201,7 +202,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     supabase = getSupabaseServiceClient();
   } catch (error) {
-    console.error('[Webhook] ❌ Supabase service client misconfigured', {
+    logger.error('[Webhook] Supabase service client misconfigured', {
       timestamp,
       action: 'MANUAL_FIX',
       error: error instanceof Error ? error.message : 'unknown_error',
@@ -218,7 +219,7 @@ export async function POST(request: Request): Promise<Response> {
       .maybeSingle();
 
     if (selectError) {
-      console.error('[Webhook] ❌ DB read failed', {
+      logger.error('[Webhook] DB read failed', {
         timestamp,
         userId,
         orderId,
@@ -229,7 +230,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (!userRow) {
-      console.warn('[Webhook] ⚠️ User not found', {
+      logger.warn('[Webhook] User not found', {
         timestamp,
         userId,
         orderId,
@@ -245,7 +246,7 @@ export async function POST(request: Request): Promise<Response> {
     if (alreadyPaid) {
       // Idempotent: do not fail, but warn if a different order is being attached.
       if (existingOrderId && existingOrderId !== orderId) {
-        console.warn('[Webhook] ⚠️ User already paid with different order id', {
+        logger.warn('[Webhook] User already paid with different order id', {
           timestamp,
           userId,
           orderId,
@@ -253,7 +254,7 @@ export async function POST(request: Request): Promise<Response> {
           action: 'MANUAL_REVIEW',
         });
       } else {
-        console.log('[Webhook] ℹ️ Already paid (idempotent)', {
+        logger.info('[Webhook] Already paid (idempotent)', {
           timestamp,
           userId,
           orderId,
@@ -266,7 +267,7 @@ export async function POST(request: Request): Promise<Response> {
     // Optional consistency checks (non-blocking): widget/email mismatches.
     const dbWidgetId = asNonEmptyString(userRow.widget_id);
     if (dbWidgetId && dbWidgetId !== widgetId) {
-      console.warn('[Webhook] ⚠️ Widget mismatch', {
+      logger.warn('[Webhook] Widget mismatch', {
         timestamp,
         userId,
         orderId,
@@ -278,7 +279,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const dbEmail = asNonEmptyString(userRow.email);
     if (email && dbEmail && email.toLowerCase() !== dbEmail.toLowerCase()) {
-      console.warn('[Webhook] ⚠️ Email mismatch', {
+      logger.warn('[Webhook] Email mismatch', {
         timestamp,
         userId,
         orderId,
@@ -288,7 +289,7 @@ export async function POST(request: Request): Promise<Response> {
       });
     }
   } catch (error) {
-    console.error('[Webhook] ❌ DB pre-check failed', {
+    logger.error('[Webhook] DB pre-check failed', {
       timestamp,
       userId,
       orderId,
@@ -310,7 +311,7 @@ export async function POST(request: Request): Promise<Response> {
       .select('id');
 
     if (error) {
-      console.error('[Webhook] ❌ DB update failed', {
+      logger.error('[Webhook] DB update failed', {
         timestamp,
         userId,
         orderId,
@@ -322,7 +323,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const updatedCount = Array.isArray(data) ? data.length : 0;
     if (updatedCount === 0) {
-      console.warn('[Webhook] ⚠️ No rows updated (user not found?)', {
+      logger.warn('[Webhook] No rows updated (user not found?)', {
         timestamp,
         userId,
         orderId,
@@ -331,7 +332,7 @@ export async function POST(request: Request): Promise<Response> {
       return new Response('OK', { status: 200 });
     }
 
-    console.log('[Webhook] ✅ Payment confirmed', {
+    logger.info('[Webhook] Payment confirmed', {
       timestamp,
       userId,
       orderId,
@@ -342,7 +343,7 @@ export async function POST(request: Request): Promise<Response> {
 
     return new Response('OK', { status: 200 });
   } catch (error) {
-    console.error('[Webhook] ❌ Unhandled exception during DB update', {
+    logger.error('[Webhook] Unhandled exception during DB update', {
       timestamp,
       userId,
       orderId,

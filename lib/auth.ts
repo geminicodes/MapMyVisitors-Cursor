@@ -1,7 +1,8 @@
+import 'server-only';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
+import { logger } from '@/lib/logger';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 const TOKEN_NAME = 'mapmyvisitors_token';
 
 export interface CustomerPayload {
@@ -11,17 +12,32 @@ export interface CustomerPayload {
   plan: string;
 }
 
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.trim().length < 32) {
+    // Never allow weak or missing secrets in production.
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET is missing or too short (min 32 chars).');
+    }
+    logger.warn('[Auth] JWT_SECRET missing/too short; auth tokens are disabled in this environment.');
+    throw new Error('JWT_SECRET is missing or too short (min 32 chars).');
+  }
+  return secret;
+}
+
 export function createToken(payload: CustomerPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
+  const secret = getJwtSecret();
+  return jwt.sign(payload, secret, {
     expiresIn: '7d',
   });
 }
 
 export function verifyToken(token: string): CustomerPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as CustomerPayload;
+    const secret = getJwtSecret();
+    const decoded = jwt.verify(token, secret) as CustomerPayload;
     return decoded;
-  } catch (error) {
+  } catch {
     return null;
   }
 }

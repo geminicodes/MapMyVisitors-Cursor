@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyMagicToken } from '@/lib/token';
 import { createServiceClient } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +33,7 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     if (error) {
-      console.error('[Verify Token] Database error:', error);
+      logger.error('[Verify Token] Database error', { message: error.message });
       return NextResponse.json(
         { success: false, error: 'Database error' },
         { status: 500 }
@@ -50,18 +54,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[Verify Token] Token verified successfully', {
-      userId: user.id,
-      widgetId: user.widget_id,
-    });
-
     return NextResponse.json({
       success: true,
       widgetId: user.widget_id,
       email: user.email,
     });
   } catch (error) {
-    console.error('[Verify Token] Error:', error);
+    logger.error('[Verify Token] Error', {
+      message: error instanceof Error ? error.message : 'unknown_error',
+    });
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
